@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_web_android/components/modal_meeting.dart';
+import 'package:flutter_web_android/screens/home_screen_view_model.dart';
+import 'package:provider/provider.dart';
 import '../components/sidebar.dart';
 import '../theme/theme_provider.dart';
 import 'dart:async';
@@ -16,6 +18,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _currentScreen = Center(child: Text('Bienvenido al Home Screen!'));
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   Timer? _sessionTimer; // Agregado: Timer para la sesión
+  late HomeScreenViewModel _viewModel;
 
   @override
   void initState() {
@@ -24,6 +27,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _sessionTimer = Timer(Duration(minutes: 2), () {
       _showTimeoutDialog();
     });
+    _viewModel = HomeScreenViewModel();
   }
 
   // Agregado: Método para mostrar el diálogo de timeout
@@ -114,6 +118,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     _sessionTimer?.cancel();
+    _viewModel.dispose();
     super.dispose();
   }
 
@@ -131,97 +136,161 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      key: _scaffoldKey,
-      appBar: kIsWeb
-          ? null
-          : AppBar(
-              title: Text('Home'),
-              leading: IconButton(
-                icon: Icon(Icons.menu),
-                onPressed: () {
-                  _scaffoldKey.currentState?.openDrawer();
-                },
+    return ChangeNotifierProvider.value(
+      value: _viewModel,
+      child: Scaffold(
+        key: _scaffoldKey,
+        appBar: kIsWeb
+            ? null
+            : AppBar(
+                title: Text('Home'),
+                leading: IconButton(
+                  icon: Icon(Icons.menu),
+                  onPressed: () {
+                    _scaffoldKey.currentState?.openDrawer();
+                  },
+                ),
+                actions: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text('Tema oscuro', style: TextStyle(fontSize: 14)),
+                        Switch(
+                          value: isRedTheme,
+                          onChanged: (bool value) {
+                            setState(() {
+                              isRedTheme = value;
+                              AppTheme.switchTheme(context, isRedTheme);
+                            });
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.logout),
+                    onPressed: () {},
+                  ),
+                ],
               ),
-              actions: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text('Tema Rojo', style: TextStyle(fontSize: 14)),
-                      Switch(
-                        value: isRedTheme,
-                        onChanged: (bool value) {
-                          setState(() {
-                            isRedTheme = value;
-                            AppTheme.switchTheme(context, isRedTheme);
-                          });
-                        },
-                      ),
-                    ],
+        drawer: kIsWeb ? null : Sidebar(onSelectScreen: _changeScreen),
+        body: Stack(
+          children: [
+            Row(
+              children: [
+                if (kIsWeb)
+                  Sidebar(
+                    onSelectScreen: _changeScreen,
+                  ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16.0, vertical: 16.0),
+                    child: AnimatedSwitcher(
+                      duration: Duration(milliseconds: 300),
+                      child: _currentScreen,
+                    ),
                   ),
                 ),
               ],
             ),
-      drawer: kIsWeb ? null : Sidebar(onSelectScreen: _changeScreen),
-      body: Stack(
-        children: [
-          Row(
-            children: [
-              if (kIsWeb)
-                Sidebar(
-                  onSelectScreen: _changeScreen,
-                ),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16.0, vertical: 16.0),
-                  child: AnimatedSwitcher(
-                    duration: Duration(milliseconds: 300),
-                    child: _currentScreen,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          if (showMeetingModal)
-            Positioned.fill(
-              child: Material(
-                color: Colors.transparent,
-                child: Stack(
-                  children: [
-                    Positioned.fill(
-                      child: GestureDetector(
-                        onTap: _hideMeetingModal,
-                        child: Container(
-                          color: Colors.black.withOpacity(0.5),
-                        ),
-                      ),
-                    ),
-                    Center(
-                      child: IgnorePointer(
-                        ignoring: false,
-                        child: AnimatedContainer(
-                          duration: Duration(milliseconds: 300),
-                          width: _getModalWidth(context),
-                          child: MeetingReminderCard(
-                            date: 'June 15, 2023',
-                            place: 'Conference Room A',
-                            agenda: [
-                              'Project status update',
-                              'Budget review',
-                              'Team assignments',
-                            ],
+            if (showMeetingModal)
+              Positioned.fill(
+                child: Material(
+                  color: Colors.transparent,
+                  child: Stack(
+                    children: [
+                      Positioned.fill(
+                        child: GestureDetector(
+                          onTap: _hideMeetingModal,
+                          child: Container(
+                            color: Colors.black.withOpacity(0.5),
                           ),
                         ),
                       ),
-                    ),
-                  ],
+                      Center(
+                        child: IgnorePointer(
+                          ignoring: false,
+                          child: AnimatedContainer(
+                            duration: Duration(milliseconds: 300),
+                            width: _getModalWidth(context),
+                            child: MeetingReminderCard(
+                              date: 'June 15, 2023',
+                              place: 'Conference Room A',
+                              agenda: [
+                                'Project status update',
+                                'Budget review',
+                                'Team assignments',
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-        ],
+            if (kIsWeb)
+              Consumer<HomeScreenViewModel>(
+                builder: (context, viewModel, child) => Positioned(
+                  top: 16.0,
+                  right: 16.0,
+                  child: IconButton(
+                    icon: const Icon(Icons.logout, color: Colors.black),
+                    onPressed: () async {
+                      try {
+                        final shouldLogout = await showDialog<bool>(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            title: const Text('Cerrar sesión'),
+                            content: const Text(
+                                '¿Estás seguro que deseas cerrar sesión?'),
+                            actions: [
+                              TextButton(
+                                onPressed: () =>
+                                    Navigator.of(context).pop(false),
+                                child: const Text('Cancelar'),
+                              ),
+                              TextButton(
+                                onPressed: () =>
+                                    Navigator.of(context).pop(true),
+                                child: const Text('Cerrar sesión'),
+                              ),
+                            ],
+                          ),
+                        );
+
+                        if (shouldLogout == true) {
+                          showDialog(
+                            context: context,
+                            barrierDismissible: false,
+                            builder: (context) => const Center(
+                              child: CircularProgressIndicator(),
+                            ),
+                          );
+
+                          await viewModel.logout(context);
+                        }
+                      } catch (e) {
+                        if (Navigator.canPop(context)) {
+                          Navigator.pop(context);
+                        }
+
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Error: ${e.toString()}'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                    },
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

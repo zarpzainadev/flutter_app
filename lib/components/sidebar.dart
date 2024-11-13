@@ -16,7 +16,8 @@ class Sidebar extends StatefulWidget {
 
 class _SidebarState extends State<Sidebar> {
   bool _isExpanded = true;
-  String _selectedRole = 'tesorero'; // Por defecto mostramos opciones de admin
+  String _selectedRole =
+      'secretario'; // Por defecto mostramos opciones de admin
 
   @override
   Widget build(BuildContext context) {
@@ -200,7 +201,7 @@ class _SidebarState extends State<Sidebar> {
                       const SizedBox(width: 16),
                       Expanded(
                         child: Text(
-                          _isExpanded ? 'Collapse' : 'Expand',
+                          _isExpanded ? '' : 'Expand',
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 16,
