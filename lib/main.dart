@@ -7,20 +7,36 @@ import 'package:flutter_web_android/theme/theme_provider.dart';
 import 'package:jwt_decode/jwt_decode.dart';
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await StorageService.init();
-  await dotenv.load();
+  try {
+    WidgetsFlutterBinding.ensureInitialized();
 
-  // Verificar si hay una sesión activa antes de iniciar la app
-  final hasSession = await checkSession();
+    // Inicializar servicios en paralelo
+    await Future.wait([
+      StorageService.init(),
+      dotenv.load(),
+    ]);
 
-  runApp(MyApp(initialScreen: hasSession ? HomeScreen() : LoginScreen()));
+    // Verificar sesión con mejor manejo de errores
+    Widget initialScreen;
+    try {
+      final hasSession = await checkSession();
+      initialScreen = hasSession ? const HomeScreen() : LoginScreen();
+    } catch (e) {
+      print('Error en verificación de sesión: $e');
+      initialScreen = LoginScreen();
+    }
+
+    runApp(MyApp(initialScreen: initialScreen));
+  } catch (e) {
+    print('Error en inicialización: $e');
+    runApp(MyApp(initialScreen: LoginScreen()));
+  }
 }
 
 class MyApp extends StatefulWidget {
   final Widget initialScreen;
 
-  MyApp({required this.initialScreen});
+  const MyApp({Key? key, required this.initialScreen}) : super(key: key);
 
   @override
   _MyAppState createState() => _MyAppState();
@@ -45,34 +61,42 @@ class _MyAppState extends State<MyApp> {
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: _themeMode,
-      home: widget.initialScreen, // Aquí se carga la pantalla inicial
+      home: widget.initialScreen,
     );
   }
 }
 
-// Verificar si hay una sesión activa y si el token es válido
 Future<bool> checkSession() async {
-  final savedToken = await StorageService.getToken();
-  if (savedToken != null) {
-    // Verificar si el token ha expirado
-    if (isTokenExpired(savedToken.accessToken)) {
-      // Si el token ha expirado, eliminarlo y redirigir al login
-      await StorageService.deleteToken();
-      return false;
+  try {
+    final savedToken = await StorageService.getToken();
+    if (savedToken != null) {
+      if (isTokenExpired(savedToken.accessToken)) {
+        print('Token expirado, limpiando...');
+        await StorageService.clearAll();
+        return false;
+      }
+      return true;
     }
-    return true; // Token válido
+    print('No hay token guardado');
+    return false;
+  } catch (e) {
+    print('Error checking session: $e');
+    await StorageService.clearAll();
+    return false;
   }
-  return false; // No hay token
 }
 
-// Función para verificar si el token ha expirado
 bool isTokenExpired(String token) {
-  final Map<String, dynamic> decodedToken = Jwt.parseJwt(token);
-  final int expiration = decodedToken['exp'];
-  final int currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+  try {
+    final Map<String, dynamic> decodedToken = Jwt.parseJwt(token);
+    final int expiration = decodedToken['exp'];
+    final int currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
 
-  if (currentTime > expiration) {
-    return true; // Token ha expirado
+    print(
+        'Token expira en: ${DateTime.fromMillisecondsSinceEpoch(expiration * 1000)}');
+    return currentTime >= expiration;
+  } catch (e) {
+    print('Error al verificar expiración: $e');
+    return true;
   }
-  return false; // Token válido
 }

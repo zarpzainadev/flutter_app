@@ -1,116 +1,113 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_web_android/components/logout_alert_button.dart';
 import 'package:flutter_web_android/components/modal_meeting.dart';
+import 'package:flutter_web_android/components/modal_sesion_timeout.dart';
+import 'package:flutter_web_android/components/session_timeout_wrapper.dart';
+import 'package:flutter_web_android/models/modulo_user_meetings.dart';
+import 'package:flutter_web_android/screens/Users/user_details/user_detail_screen.dart';
+import 'package:flutter_web_android/screens/calendar/calendar_screen.dart';
 import 'package:flutter_web_android/screens/home_screen_view_model.dart';
 import 'package:provider/provider.dart';
-import '../components/sidebar.dart';
+import 'package:flutter_web_android/components/sidebar.dart';
 import '../theme/theme_provider.dart';
 import 'dart:async';
 
 class HomeScreen extends StatefulWidget {
+  const HomeScreen({Key? key}) : super(key: key);
+
   @override
-  _HomeScreenState createState() => _HomeScreenState();
+  HomeScreenState createState() => HomeScreenState(); // Cambiar a público
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class HomeScreenState extends State<HomeScreen> {
   bool isRedTheme = true;
   bool showMeetingModal = true;
-  Widget _currentScreen = Center(child: Text('Bienvenido al Home Screen!'));
+  Widget _currentScreen = CalendarScreen(
+    meetings: const [], // Lista vacía inicial
+    onMeetingTap: (MeetingModel meeting) {
+      // Aquí puedes manejar el tap
+      print('Reunión seleccionada: ${meeting.lugar}');
+    },
+  );
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   Timer? _sessionTimer; // Agregado: Timer para la sesión
   late HomeScreenViewModel _viewModel;
+  List<String> userAllowedGroups = [];
 
   @override
   void initState() {
     super.initState();
     // Agregado: Iniciar el timer cuando se carga el HomeScreen
-    _sessionTimer = Timer(Duration(minutes: 2), () {
+    _sessionTimer = Timer(Duration(minutes: 13), () {
       _showTimeoutDialog();
     });
     _viewModel = HomeScreenViewModel();
+    _loadUserAllowedGroups();
+    _viewModel.fetchNextMeeting();
   }
 
-  // Agregado: Método para mostrar el diálogo de timeout
-  void _showTimeoutDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        final isWeb = kIsWeb;
+  // Agregar este método para cambiar pantallas
+  void changeScreen(Widget newScreen) {
+    setState(() {
+      _currentScreen = newScreen;
+    });
+  }
 
-        return Dialog(
-          backgroundColor: Colors.transparent,
-          child: Container(
-            width: isWeb ? 400 : 320,
-            padding: EdgeInsets.all(isWeb ? 32.0 : 24.0),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16.0),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 4.0,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'Sesión por expirar',
-                  style: TextStyle(
-                    fontSize: isWeb ? 24.0 : 20.0,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
-                  ),
-                ),
-                SizedBox(height: isWeb ? 16.0 : 12.0),
-                Text(
-                  'Su sesión está por expirar. ¿Desea continuar con la sesión activa?',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: isWeb ? 16.0 : 14.0,
-                    color: Colors.black54,
-                    height: 1.5,
-                  ),
-                ),
-                SizedBox(height: isWeb ? 24.0 : 20.0),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.of(context).pop();
-                      // Reinicia el timer cuando el usuario continúa la sesión
-                      _sessionTimer?.cancel();
-                      _sessionTimer = Timer(Duration(minutes: 2), () {
-                        _showTimeoutDialog();
-                      });
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF6366F1),
-                      foregroundColor: Colors.white,
-                      padding: EdgeInsets.symmetric(
-                        vertical: isWeb ? 12.0 : 10.0,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8.0),
-                      ),
-                    ),
-                    child: Text(
-                      'Continuar sesión',
-                      style: TextStyle(
-                        fontSize: isWeb ? 16.0 : 14.0,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+  // Método específico para navegar al detalle de usuario
+  void navigateToUserDetail(int userId) {
+    changeScreen(UserDetailScreen(userId: userId));
+  }
+
+  void _loadUserAllowedGroups() async {
+    try {
+      final groups = await _viewModel.fetchUserAllowedGroups();
+      print(groups);
+      setState(() {
+        userAllowedGroups = groups;
+      });
+    } catch (e) {
+      // Maneja el error si es necesario
+      print('Error al obtener los grupos: $e');
+    }
+  }
+
+  void _logout(BuildContext context) async {
+    try {
+      final shouldLogout = await showDialog<bool>(
+        context: context,
+        builder: (context) => const LogoutConfirmationDialog(),
+      );
+
+      if (shouldLogout == true) {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => const Center(
+            child: CircularProgressIndicator(),
           ),
         );
-      },
+
+        // Primero hacer logout en API
+        await _viewModel.logout(context);
+      }
+    } catch (e) {
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  void _showTimeoutDialog() {
+    showSessionTimeoutDialog(
+      context,
     );
   }
 
@@ -136,160 +133,160 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider.value(
-      value: _viewModel,
-      child: Scaffold(
-        key: _scaffoldKey,
-        appBar: kIsWeb
-            ? null
-            : AppBar(
-                title: Text('Home'),
-                leading: IconButton(
-                  icon: Icon(Icons.menu),
-                  onPressed: () {
-                    _scaffoldKey.currentState?.openDrawer();
-                  },
+    return SessionTimeoutWrapper(
+      onSessionTimeout: () {
+        _viewModel.logout(context);
+      },
+      child: ChangeNotifierProvider.value(
+        value: _viewModel,
+        child: Theme(
+          // Añadir un Theme explícito
+          data: Theme.of(context).copyWith(
+            scaffoldBackgroundColor: Colors.white,
+            colorScheme: Theme.of(context).colorScheme.copyWith(
+                  background: Colors.white,
+                  surface: Colors.white,
                 ),
-                actions: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text('Tema oscuro', style: TextStyle(fontSize: 14)),
-                        Switch(
-                          value: isRedTheme,
-                          onChanged: (bool value) {
-                            setState(() {
-                              isRedTheme = value;
-                              AppTheme.switchTheme(context, isRedTheme);
-                            });
-                          },
-                        ),
-                      ],
+          ),
+          child: Scaffold(
+            key: _scaffoldKey,
+            backgroundColor: Colors.white, // Color explícito
+            appBar: kIsWeb
+                ? null
+                : AppBar(
+                    title: Text(''),
+                    leading: IconButton(
+                      icon: Icon(Icons.menu),
+                      onPressed: () {
+                        _scaffoldKey.currentState?.openDrawer();
+                      },
                     ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.logout),
-                    onPressed: () {},
-                  ),
-                ],
-              ),
-        drawer: kIsWeb ? null : Sidebar(onSelectScreen: _changeScreen),
-        body: Stack(
-          children: [
-            Row(
-              children: [
-                if (kIsWeb)
-                  Sidebar(
-                    onSelectScreen: _changeScreen,
-                  ),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16.0, vertical: 16.0),
-                    child: AnimatedSwitcher(
-                      duration: Duration(milliseconds: 300),
-                      child: _currentScreen,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            if (showMeetingModal)
-              Positioned.fill(
-                child: Material(
-                  color: Colors.transparent,
-                  child: Stack(
-                    children: [
-                      Positioned.fill(
-                        child: GestureDetector(
-                          onTap: _hideMeetingModal,
-                          child: Container(
-                            color: Colors.black.withOpacity(0.5),
-                          ),
+                    actions: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text('Tema oscuro', style: TextStyle(fontSize: 14)),
+                            Switch(
+                              value: isRedTheme,
+                              onChanged: (bool value) {
+                                setState(() {
+                                  isRedTheme = value;
+                                  AppTheme.switchTheme(context, isRedTheme);
+                                });
+                              },
+                            ),
+                            IconButton(
+                              icon: Icon(Icons.logout),
+                              tooltip: 'Cerrar Sesión',
+                              onPressed: () => _logout(context),
+                            ),
+                          ],
                         ),
                       ),
-                      Center(
-                        child: IgnorePointer(
-                          ignoring: false,
-                          child: AnimatedContainer(
-                            duration: Duration(milliseconds: 300),
-                            width: _getModalWidth(context),
-                            child: MeetingReminderCard(
-                              date: 'June 15, 2023',
-                              place: 'Conference Room A',
-                              agenda: [
-                                'Project status update',
-                                'Budget review',
-                                'Team assignments',
-                              ],
+                    ],
+                  ),
+            drawer: kIsWeb
+                ? null
+                : Sidebar(
+                    onSelectScreen: _changeScreen,
+                    allowedGroups: userAllowedGroups,
+                    onLogout: _logout,
+                  ),
+            body: Container(
+              color: Colors.white,
+              child: Stack(
+                children: [
+                  Row(
+                    children: [
+                      if (kIsWeb)
+                        Sidebar(
+                          onSelectScreen: _changeScreen,
+                          allowedGroups: userAllowedGroups,
+                          onLogout: _logout,
+                        ),
+                      Expanded(
+                        child: Container(
+                          color: Colors.white, // Añadir color explícito
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16.0, vertical: 16.0),
+                            child: AnimatedSwitcher(
+                              duration: Duration(milliseconds: 300),
+                              child: _currentScreen,
                             ),
                           ),
                         ),
                       ),
                     ],
                   ),
-                ),
-              ),
-            if (kIsWeb)
-              Consumer<HomeScreenViewModel>(
-                builder: (context, viewModel, child) => Positioned(
-                  top: 16.0,
-                  right: 16.0,
-                  child: IconButton(
-                    icon: const Icon(Icons.logout, color: Colors.black),
-                    onPressed: () async {
-                      try {
-                        final shouldLogout = await showDialog<bool>(
-                          context: context,
-                          builder: (context) => AlertDialog(
-                            title: const Text('Cerrar sesión'),
-                            content: const Text(
-                                '¿Estás seguro que deseas cerrar sesión?'),
-                            actions: [
-                              TextButton(
-                                onPressed: () =>
-                                    Navigator.of(context).pop(false),
-                                child: const Text('Cancelar'),
-                              ),
-                              TextButton(
-                                onPressed: () =>
-                                    Navigator.of(context).pop(true),
-                                child: const Text('Cerrar sesión'),
-                              ),
-                            ],
-                          ),
-                        );
+                  // En HomeScreen, modificar la parte del modal:
+                  // En HomeScreen.dart, reemplazar la parte del modal:
 
-                        if (shouldLogout == true) {
-                          showDialog(
-                            context: context,
-                            barrierDismissible: false,
-                            builder: (context) => const Center(
-                              child: CircularProgressIndicator(),
+                  if (showMeetingModal)
+                    Positioned.fill(
+                      child: Material(
+                        color: Colors.black.withOpacity(0.5),
+                        child: Stack(
+                          children: [
+                            // Overlay para cerrar al hacer clic fuera
+                            Positioned.fill(
+                              child: GestureDetector(
+                                onTap: _hideMeetingModal,
+                                child: Container(color: Colors.transparent),
+                              ),
                             ),
-                          );
+                            // Modal centrado
+                            Center(
+                              child: Consumer<HomeScreenViewModel>(
+                                builder: (context, viewModel, child) {
+                                  if (viewModel.isLoading) {
+                                    return const MeetingReminderCard(
+                                      date: 'Cargando...',
+                                      place: 'Cargando...',
+                                      agenda: ['Cargando agenda...'],
+                                    );
+                                  }
 
-                          await viewModel.logout(context);
-                        }
-                      } catch (e) {
-                        if (Navigator.canPop(context)) {
-                          Navigator.pop(context);
-                        }
+                                  if (viewModel.hasNoMeetings) {
+                                    return const MeetingReminderCard(
+                                      date: 'No hay reuniones programadas',
+                                      place: 'Sin lugar asignado',
+                                      agenda: [
+                                        'No hay reuniones programadas actualmente'
+                                      ],
+                                    );
+                                  }
 
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Error: ${e.toString()}'),
-                            backgroundColor: Colors.red,
-                          ),
-                        );
-                      }
-                    },
-                  ),
-                ),
+                                  if (viewModel.errorMessage != null) {
+                                    return MeetingReminderCard(
+                                      date: 'Error',
+                                      place: 'Error',
+                                      agenda: [
+                                        viewModel.errorMessage ??
+                                            'Error desconocido'
+                                      ],
+                                    );
+                                  }
+
+                                  return MeetingReminderCard(
+                                    date: viewModel.getFormattedDate(),
+                                    place: viewModel.meeting?.lugar ??
+                                        'Lugar no especificado',
+                                    agenda: viewModel.getAgendaItems(),
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
               ),
-          ],
+            ),
+          ),
         ),
       ),
     );

@@ -1,105 +1,118 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
-import 'package:flutter_web_android/models/login_model.dart';
+import 'package:flutter_web_android/models/modulo_user_meetings.dart';
 import 'package:flutter_web_android/screens/login_screen/login_screen.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_web_android/services/api_service_login.dart';
+import 'package:flutter_web_android/services/api_service_usuario.dart';
+import 'package:flutter_web_android/storage/storage_services.dart';
+import 'package:intl/intl.dart';
 
 class HomeScreenViewModel extends ChangeNotifier {
-  final _dio = Dio();
+  final ApiServiceUsuario _apiService = ApiServiceUsuario();
+
+  Meeting? nextMeeting;
+  String? errorMessage;
+  bool hasNoMeetings = false;
+  bool isLoading = false;
+  bool shouldShowModal = true;
+
+  Meeting? get meeting => nextMeeting;
 
   Future<void> logout(BuildContext context) async {
+    ApiService _apiService = ApiService();
     try {
-      // Obtener el refresh token desde SharedPreferences
-      final token = await TokenHelper.getToken();
-      print(
-          '2. Token obtenido: ${token != null ? "Token existe" : "Token es null"}');
+      final token = await StorageService.getToken();
+      if (token != null) {
+        // Primero hacer la llamada API con el token
+        await _apiService.logoutSession(token.accessToken);
+
+        // Después de éxito, limpiar storage
+        await StorageService.clearAll();
+
+        // Finalmente navegar
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => LoginScreen()),
+          (route) => false,
+        );
+      }
+    } catch (e) {
+      throw Exception('Error al cerrar sesión: $e');
+    }
+  }
+
+  Future<List<String>> fetchUserAllowedGroups() async {
+    try {
+      final token = await StorageService.getToken();
       if (token == null) {
-        throw Exception('No hay sesión activa para cerrar.');
+        throw Exception('Token no disponible');
       }
 
-      // Hacer la solicitud de cierre de sesión
-      final response = await _dio.post(
-        '/auth/logout',
-        options: Options(
-          headers: {
-            'Authorization': 'Bearer ${token.accessToken}',
-          },
-        ),
-      );
+      final apiService = ApiService();
+      final response =
+          await apiService.getScreenGroupsForCurrentUser(token.accessToken);
 
-      // Parsear la respuesta
-      final logoutResponse = LogoutResponse.fromJson(response.data);
+      // Extraer solo los valores de 'identifier' de la respuesta
+      print('Token guardado: $response');
 
-      // Eliminar el token de SharedPreferences
-      await TokenHelper.deleteToken();
+      List<String> userAllowedGroups = response.screenGroups
+          .map((screenGroup) => screenGroup.identifier)
+          .toList();
 
-      // Navegar a la pantalla de inicio de sesión
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (_) => LoginScreen()),
-        (route) => false,
-      );
-
-      // Notificar a los widgets observadores
-      notifyListeners();
-    } on DioException catch (e) {
-      if (e.response?.statusCode == 400) {
-        throw Exception('No hay sesión activa para cerrar.');
-      }
-      throw Exception('Error al cerrar sesión: ${e.message}');
+      return userAllowedGroups;
     } catch (e) {
-      // Manejar otros errores
-      rethrow;
+      throw Exception('Error al obtener los grupos de pantallas: $e');
     }
   }
-}
 
-// Clase auxiliar para manejar el token
-class TokenHelper {
-  static SharedPreferences? _prefs;
-
-  static Future<void> init() async {
-    _prefs = await SharedPreferences.getInstance();
-  }
-
-  static Future<Token?> getToken() async {
-    if (_prefs == null) await init();
-
+  Future<void> fetchNextMeeting() async {
     try {
-      final tokenJson = _prefs!.getString('token');
-      if (tokenJson == null) return null;
+      isLoading = true;
+      notifyListeners();
 
-      final tokenMap = json.decode(tokenJson);
-      return Token.fromJson(tokenMap);
+      final token = await StorageService.getToken();
+      if (token == null) {
+        throw Exception('Token no disponible');
+      }
+
+      try {
+        nextMeeting = await _apiService.getNextMeeting(token.accessToken);
+        hasNoMeetings = false;
+        errorMessage = null;
+        shouldShowModal = true; // Mantener modal visible
+      } on DioException catch (e) {
+        if (e.response?.statusCode == 404) {
+          hasNoMeetings = true;
+          nextMeeting = null;
+          errorMessage = null;
+          shouldShowModal =
+              true; // Mantener modal visible para mostrar "no hay reuniones"
+        } else {
+          errorMessage = 'Error de conexión';
+          hasNoMeetings = false;
+          shouldShowModal = true; // Mantener modal visible para mostrar error
+        }
+      }
     } catch (e) {
-      print('Error getting token: $e');
-      return null;
+      errorMessage = 'Error al obtener la próxima reunión';
+      hasNoMeetings = false;
+      shouldShowModal = true; // Mantener modal visible para mostrar error
+    } finally {
+      isLoading = false;
+      notifyListeners();
     }
   }
 
-  static Future<bool> deleteToken() async {
-    if (_prefs == null) await init();
-    return await _prefs!.remove('token');
+  String getFormattedDate() {
+    if (isLoading) return 'Cargando...';
+    if (hasNoMeetings) return 'No hay reuniones programadas';
+    if (nextMeeting == null) return '';
+    return DateFormat('dd/MM/yyyy').format(nextMeeting!.fecha);
   }
-}
 
-class Token {
-  final String accessToken;
-  final String refreshToken;
-  final String tokenType;
-
-  Token({
-    required this.accessToken,
-    required this.refreshToken,
-    required this.tokenType,
-  });
-
-  factory Token.fromJson(Map<String, dynamic> json) {
-    return Token(
-      accessToken: json['access_token'] as String,
-      refreshToken: json['refresh_token'] as String,
-      tokenType: json['token_type'] as String,
-    );
+  List<String> getAgendaItems() {
+    if (isLoading) return ['Cargando agenda...'];
+    if (hasNoMeetings) return ['No hay reuniones programadas actualmente'];
+    if (nextMeeting == null) return [];
+    return [nextMeeting!.agenda];
   }
 }

@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_web_android/models/login_model.dart';
-import 'package:flutter_web_android/services/api_service.dart';
+import 'package:flutter_web_android/services/api_service_login.dart';
 import 'package:flutter_web_android/storage/storage_services.dart';
 
 // Enum para manejar los diferentes estados del login
@@ -61,6 +61,8 @@ class LoginViewModel extends ChangeNotifier {
 
       // Guardar el token
       await StorageService.saveToken(_token!);
+      final savedToken = await StorageService.getToken();
+      print('Token guardado: $savedToken');
 
       // Actualizamos el estado a success
       _status = LoginStatus.success;

@@ -13,8 +13,8 @@ class SessionTimeoutWrapper extends StatefulWidget {
     Key? key,
     required this.child,
     required this.onSessionTimeout,
-    this.sessionTimeInMinutes = 20, // Tiempo total de sesión
-    this.warningTimeInMinutes = 3, // Tiempo de advertencia
+    this.sessionTimeInMinutes = 15, // Tiempo total de sesión
+    this.warningTimeInMinutes = 2, // Tiempo de advertencia
   }) : super(key: key);
 
   @override

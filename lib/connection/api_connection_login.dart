@@ -6,8 +6,8 @@ class ApiConnection {
   static final Dio _dio = Dio(
     BaseOptions(
       baseUrl: kIsWeb
-          ? dotenv.env['BASE_URL_WEB'] ?? ''
-          : dotenv.env['BASE_URL_ANDROID'] ?? '',
+          ? dotenv.env['BASE_URL_WEB_LOGIN'] ?? ''
+          : dotenv.env['BASE_URL_ANDROID_LOGIN'] ?? '',
       headers: {
         'Content-Type': 'application/json',
       },

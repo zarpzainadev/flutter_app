@@ -63,3 +63,36 @@ class LogoutResponse {
     );
   }
 }
+
+// modelos de respuesta para ruta /screen-groups/:userId
+class ScreenGroup {
+  final int id;
+  final String name;
+  final String identifier;
+
+  ScreenGroup({required this.id, required this.name, required this.identifier});
+
+  factory ScreenGroup.fromJson(Map<String, dynamic> json) {
+    return ScreenGroup(
+      id: json['id'],
+      name: json['name'],
+      identifier: json['identifier'],
+    );
+  }
+}
+
+class UserScreenGroupsResponse {
+  final int userId;
+  final List<ScreenGroup> screenGroups;
+
+  UserScreenGroupsResponse({required this.userId, required this.screenGroups});
+
+  factory UserScreenGroupsResponse.fromJson(Map<String, dynamic> json) {
+    return UserScreenGroupsResponse(
+      userId: json['user_id'],
+      screenGroups: (json['screen_groups'] as List)
+          .map((group) => ScreenGroup.fromJson(group))
+          .toList(),
+    );
+  }
+}

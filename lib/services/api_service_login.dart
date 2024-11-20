@@ -25,7 +25,7 @@ class ApiService {
   }
 
   // ruta para hacer cerrar sesion
-  Future<LogoutResponse> logout(String token) async {
+  Future<LogoutResponse> logoutSession(String token) async {
     try {
       final response = await _dio.post(
         '/auth/logout',
@@ -37,11 +37,32 @@ class ApiService {
       );
 
       return LogoutResponse.fromJson(response.data);
-    } on DioException catch (e) {
-      if (e.response?.statusCode == 400) {
-        throw Exception('No hay sesión activa para cerrar.');
+    } catch (e) {
+      throw Exception('Error al cerrar sesión: $e');
+    }
+  }
+
+  // Método para obtener los grupos de pantallas
+  Future<UserScreenGroupsResponse> getScreenGroupsForCurrentUser(
+      String token) async {
+    try {
+      // Configurar los encabezados para incluir el token
+      _dio.options.headers = {
+        'Authorization': 'Bearer $token', // Usar el token en los encabezados
+      };
+
+      // Hacer la solicitud GET a la nueva ruta
+      final response = await _dio.get('/auth/screen-group');
+
+      if (response.statusCode == 200) {
+        // Convertir la respuesta en el modelo adecuado
+        return UserScreenGroupsResponse.fromJson(response.data);
+      } else {
+        throw Exception('Error al obtener los grupos de pantallas');
       }
-      throw Exception('Error al cerrar sesión: ${e.message}');
+    } catch (e) {
+      // Manejar errores de conexión o cualquier otro tipo
+      throw Exception('Error de conexión: $e');
     }
   }
 }
