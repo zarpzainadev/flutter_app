@@ -80,20 +80,3 @@ class SessionTimeoutDialog extends StatelessWidget {
     );
   }
 }
-
-// Ejemplo de uso:
-void showSessionTimeoutDialog(BuildContext context) {
-  showDialog(
-    context: context,
-    barrierDismissible:
-        false, // El usuario no puede cerrar el dialog haciendo tap fuera
-    builder: (BuildContext context) {
-      return SessionTimeoutDialog(
-        onExtendSession: () {
-          // Aquí va tu lógica para extender la sesión
-          Navigator.of(context).pop(); // Cerrar el dialog
-        },
-      );
-    },
-  );
-}

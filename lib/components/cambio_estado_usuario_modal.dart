@@ -30,8 +30,17 @@ class _ChangeEstadoModalState extends State<ChangeEstadoModal> {
     3: 'Irradiado',
   };
 
+  // Obtener ID del estado actual
+  int getEstadoActualId() {
+    return estados.entries
+        .firstWhere((entry) => entry.value == widget.estadoActual)
+        .key;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final estadoActualId = getEstadoActualId();
+
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Container(
@@ -55,21 +64,14 @@ class _ChangeEstadoModalState extends State<ChangeEstadoModal> {
                 border: OutlineInputBorder(),
               ),
               items: estados.entries
+                  .where(
+                      (e) => e.key != estadoActualId) // Filtrar estado actual
                   .map((e) => DropdownMenuItem(
                         value: e.key,
                         child: Text(e.value),
                       ))
                   .toList(),
               onChanged: (value) => setState(() => selectedEstadoId = value),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              maxLines: 3,
-              decoration: const InputDecoration(
-                labelText: 'Comentario',
-                border: OutlineInputBorder(),
-              ),
-              onChanged: (value) => comentario = value,
             ),
             const SizedBox(height: 16),
             Row(

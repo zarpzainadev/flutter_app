@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_web_android/components/custom_loading.dart';
 import 'package:flutter_web_android/components/report_usuario_modal.dart';
 import 'package:flutter_web_android/components/table_flexible.dart';
 import 'package:flutter_web_android/models/modulo_gestion_usuario_model.dart';
@@ -11,7 +12,7 @@ class ListUserScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (_) => ListUserViewModel(),
+      create: (_) => ListUserViewModel()..initialize(),
       child: Consumer<ListUserViewModel>(
         builder: (context, viewModel, child) {
           return Stack(
@@ -36,6 +37,49 @@ class ListUserScreen extends StatelessWidget {
                           style: TextStyle(color: Colors.red.shade700),
                         ),
                       ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        ElevatedButton.icon(
+                          onPressed: () {
+                            showReportUsuarioModal(
+                              context,
+                              (estado, formato) => viewModel.generateReport(
+                                estadoNombre: estado,
+                                formato: formato,
+                                title: "Reporte de Usuarios $estado",
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.description),
+                          label: const Text('Generar Reporte'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF1E3A8A),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        ElevatedButton.icon(
+                          onPressed: () =>
+                              viewModel.listUsers(forceRefresh: true),
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Actualizar'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF1E3A8A),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
                     Expanded(
                       child: CustomDataTable(
                         columns: viewModel.columns,
@@ -43,45 +87,6 @@ class ListUserScreen extends StatelessWidget {
                         actions: viewModel.getActions(context),
                         title: 'Usuarios',
                         primaryColor: const Color(0xFF1E3A8A),
-                        headerActions: [
-                          ElevatedButton.icon(
-                            onPressed: () {
-                              showReportUsuarioModal(
-                                context,
-                                (estado, formato) => viewModel.generateReport(
-                                  estadoNombre: estado,
-                                  formato: formato,
-                                  title: "Reporte de Usuarios $estado",
-                                ),
-                              );
-                            },
-                            icon: const Icon(Icons.description),
-                            label: const Text('Generar Reporte'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF1E3A8A),
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 12,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          ElevatedButton.icon(
-                            onPressed: () =>
-                                viewModel.listUsers(forceRefresh: true),
-                            icon: const Icon(Icons.refresh),
-                            label: const Text('Actualizar'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF1E3A8A),
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 12,
-                              ),
-                            ),
-                          ),
-                        ],
                       ),
                     ),
                   ],
@@ -89,13 +94,9 @@ class ListUserScreen extends StatelessWidget {
               ),
               if (viewModel.isLoading)
                 Container(
-                  color: Colors.black26,
-                  child: const Center(
-                    child: CircularProgressIndicator(
-                      valueColor:
-                          AlwaysStoppedAnimation<Color>(Color(0xFF1E3A8A)),
-                    ),
-                  ),
+                  color: Colors.white
+                      .withOpacity(0.8), // Fondo más claro y profesional
+                  child: const CustomLoading(), // Nuestro nuevo loader
                 ),
             ],
           );

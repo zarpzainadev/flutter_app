@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../main.dart';
 
 class AppTheme {
@@ -29,8 +30,32 @@ class AppTheme {
     ),
   );
 
-  static void switchTheme(BuildContext context, bool isRed) {
-    ThemeMode themeMode = isRed ? ThemeMode.light : ThemeMode.dark;
-    MyApp.of(context)?.setThemeMode(themeMode);
+  static void switchTheme(BuildContext context, bool isLight) {
+    // Usar Provider directamente
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+    ThemeMode themeMode = isLight ? ThemeMode.light : ThemeMode.dark;
+    themeProvider.setThemeMode(themeMode);
+  }
+}
+
+class ThemeProvider extends ChangeNotifier {
+  ThemeMode _themeMode = ThemeMode.light;
+
+  ThemeMode get themeMode => _themeMode;
+
+  void setThemeMode(ThemeMode mode) {
+    _themeMode = mode;
+    notifyListeners();
+  }
+
+  ThemeData getTheme() {
+    switch (_themeMode) {
+      case ThemeMode.light:
+        return AppTheme.lightTheme;
+      case ThemeMode.dark:
+        return AppTheme.darkTheme;
+      default:
+        return AppTheme.lightTheme;
+    }
   }
 }

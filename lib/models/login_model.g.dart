@@ -32,3 +32,26 @@ Map<String, dynamic> _$TokenToJson(Token instance) => <String, dynamic>{
       'refresh_token': instance.refreshToken,
       'token_type': instance.tokenType,
     };
+
+RefreshTokenRequest _$RefreshTokenRequestFromJson(Map<String, dynamic> json) =>
+    RefreshTokenRequest(
+      refreshToken: json['refresh_token'] as String,
+    );
+
+Map<String, dynamic> _$RefreshTokenRequestToJson(
+        RefreshTokenRequest instance) =>
+    <String, dynamic>{
+      'refresh_token': instance.refreshToken,
+    };
+
+TokenRegenerate _$TokenRegenerateFromJson(Map<String, dynamic> json) =>
+    TokenRegenerate(
+      accessToken: json['access_token'] as String,
+      tokenType: json['token_type'] as String,
+    );
+
+Map<String, dynamic> _$TokenRegenerateToJson(TokenRegenerate instance) =>
+    <String, dynamic>{
+      'access_token': instance.accessToken,
+      'token_type': instance.tokenType,
+    };

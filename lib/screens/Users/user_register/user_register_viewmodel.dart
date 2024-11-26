@@ -9,6 +9,19 @@ class UserRegisterViewModel extends ChangeNotifier {
   bool isLoading = false;
   String? errorMessage;
   int? usuarioId;
+  bool _disposed = false;
+
+  void _safeNotifyListeners() {
+    if (!_disposed) {
+      notifyListeners();
+    }
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
 
   UserRegisterViewModel({ApiServiceAdmin? apiService})
       : _apiService = apiService ?? ApiServiceAdmin();
@@ -24,7 +37,7 @@ class UserRegisterViewModel extends ChangeNotifier {
   }) async {
     try {
       isLoading = true;
-      notifyListeners();
+      _safeNotifyListeners();
 
       final token = await StorageService.getToken();
       if (token == null) throw Exception('Token no disponible');
@@ -48,13 +61,13 @@ class UserRegisterViewModel extends ChangeNotifier {
       }
 
       isLoading = false;
-      notifyListeners();
+      _safeNotifyListeners();
       return true;
     } catch (e) {
       debugPrint('Error en registerUsuarioCompleto: $e');
       isLoading = false;
       errorMessage = 'Error en el registro: $e';
-      notifyListeners();
+      _safeNotifyListeners();
       return false;
     }
   }
@@ -88,6 +101,6 @@ class UserRegisterViewModel extends ChangeNotifier {
     isLoading = false;
     errorMessage = null;
     usuarioId = null;
-    notifyListeners();
+    _safeNotifyListeners();
   }
 }

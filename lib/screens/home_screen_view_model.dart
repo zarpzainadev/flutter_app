@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter_web_android/models/login_model.dart';
 import 'package:flutter_web_android/models/modulo_user_meetings.dart';
 import 'package:flutter_web_android/screens/login_screen/login_screen.dart';
 import 'package:flutter_web_android/services/api_service_login.dart';
@@ -15,6 +16,27 @@ class HomeScreenViewModel extends ChangeNotifier {
   bool hasNoMeetings = false;
   bool isLoading = false;
   bool shouldShowModal = true;
+  bool _disposed = false;
+
+  Future<void> initialize() async {
+    try {
+      await fetchNextMeeting();
+    } catch (e) {
+      debugPrint('Error en initialize: $e');
+    }
+  }
+
+  void _safeNotifyListeners() {
+    if (!_disposed) {
+      notifyListeners();
+    }
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
 
   Meeting? get meeting => nextMeeting;
 
@@ -65,9 +87,10 @@ class HomeScreenViewModel extends ChangeNotifier {
   }
 
   Future<void> fetchNextMeeting() async {
+    if (_disposed) return;
     try {
       isLoading = true;
-      notifyListeners();
+      _safeNotifyListeners();
 
       final token = await StorageService.getToken();
       if (token == null) {
@@ -98,7 +121,7 @@ class HomeScreenViewModel extends ChangeNotifier {
       shouldShowModal = true; // Mantener modal visible para mostrar error
     } finally {
       isLoading = false;
-      notifyListeners();
+      _safeNotifyListeners();
     }
   }
 
@@ -114,5 +137,40 @@ class HomeScreenViewModel extends ChangeNotifier {
     if (hasNoMeetings) return ['No hay reuniones programadas actualmente'];
     if (nextMeeting == null) return [];
     return [nextMeeting!.agenda];
+  }
+
+  Future<void> refreshAccessToken(BuildContext context) async {
+    try {
+      isLoading = true;
+      _safeNotifyListeners();
+
+      final token = await StorageService.getToken();
+      if (token == null) {
+        throw Exception('No hay token almacenado');
+      }
+
+      final ApiService _apiService = ApiService();
+      final newToken = await _apiService.refreshToken(token.refreshToken);
+
+      final updatedToken = Token(
+        accessToken: newToken.accessToken,
+        refreshToken: token.refreshToken,
+        tokenType: newToken.tokenType,
+      );
+
+      await StorageService.saveToken(updatedToken);
+    } on RefreshTokenException catch (e) {
+      if (e.statusCode == 401) {
+        errorMessage = 'Sesión expirada';
+        await logout(context); // Usar el contexto pasado como parámetro
+      } else {
+        errorMessage = 'Error al refrescar sesión';
+      }
+    } catch (e) {
+      errorMessage = 'Error inesperado: $e';
+    } finally {
+      isLoading = false;
+      _safeNotifyListeners();
+    }
   }
 }

@@ -7,15 +7,28 @@ import 'package:flutter_web_android/storage/storage_services.dart';
 class CalendarViewModel extends ChangeNotifier {
   final ApiServiceUsuario _apiService = ApiServiceUsuario();
   List<MeetingModel> meetings = [];
+  bool _disposed = false;
   bool isLoading = false;
   String? errorMessage;
 
   DateTime? selectedDate; // Agregar para manejar la selección
 
+  void _safeNotifyListeners() {
+    if (!_disposed) {
+      notifyListeners();
+    }
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
+
   Future<void> initialize() async {
     try {
       isLoading = true;
-      notifyListeners();
+      _safeNotifyListeners();
 
       final token = await StorageService.getToken();
       if (token == null) {
@@ -49,13 +62,13 @@ class CalendarViewModel extends ChangeNotifier {
       errorMessage = 'Error al cargar las reuniones';
     } finally {
       isLoading = false;
-      notifyListeners();
+      _safeNotifyListeners();
     }
   }
 
   void clearSelection() {
     selectedDate = null;
-    notifyListeners();
+    _safeNotifyListeners();
   }
 
   List<MeetingModel> get getMeetings => meetings;

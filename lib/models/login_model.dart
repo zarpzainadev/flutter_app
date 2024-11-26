@@ -44,11 +44,6 @@ class Token {
 
   factory Token.fromJson(Map<String, dynamic> json) => _$TokenFromJson(json);
   Map<String, dynamic> toJson() => _$TokenToJson(this);
-
-  @override
-  String toString() {
-    return 'Token(accessToken: $accessToken, refreshToken: $refreshToken, tokenType: $tokenType)';
-  }
 }
 
 // modelos de respuesta de ruta /auth/logout
@@ -95,4 +90,48 @@ class UserScreenGroupsResponse {
           .toList(),
     );
   }
+}
+
+//modelos de ruta de refreshtoken
+// Request
+@JsonSerializable()
+class RefreshTokenRequest {
+  @JsonKey(name: 'refresh_token')
+  final String refreshToken;
+
+  RefreshTokenRequest({required this.refreshToken});
+
+  factory RefreshTokenRequest.fromJson(Map<String, dynamic> json) =>
+      _$RefreshTokenRequestFromJson(json);
+  Map<String, dynamic> toJson() => _$RefreshTokenRequestToJson(this);
+}
+
+// Response exitoso
+@JsonSerializable()
+class TokenRegenerate {
+  @JsonKey(name: 'access_token')
+  final String accessToken;
+
+  @JsonKey(name: 'token_type')
+  final String tokenType;
+
+  TokenRegenerate({
+    required this.accessToken,
+    required this.tokenType,
+  });
+
+  factory TokenRegenerate.fromJson(Map<String, dynamic> json) =>
+      _$TokenRegenerateFromJson(json);
+  Map<String, dynamic> toJson() => _$TokenRegenerateToJson(this);
+}
+
+// Errores específicos
+class RefreshTokenException implements Exception {
+  final String message;
+  final int statusCode;
+
+  RefreshTokenException({
+    required this.message,
+    required this.statusCode,
+  });
 }

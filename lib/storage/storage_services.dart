@@ -63,4 +63,28 @@ class StorageService {
     if (_prefs == null) await init();
     return await _prefs!.clear();
   }
+
+  // Método para verificar si el token JWT ha expirado
+  static bool isTokenExpired(String token) {
+    try {
+      // Decodificar el token JWT (segunda parte)
+      final parts = token.split('.');
+      if (parts.length != 3) return true;
+
+      // Decodificar payload
+      final payload = json.decode(
+        utf8.decode(base64Url.decode(base64Url.normalize(parts[1]))),
+      );
+
+      // Verificar campo exp
+      if (!payload.containsKey('exp')) return true;
+
+      final exp = payload['exp'];
+      final expDate = DateTime.fromMillisecondsSinceEpoch(exp * 1000);
+      return DateTime.now().isAfter(expDate);
+    } catch (e) {
+      print('Error verificando expiración del token: $e');
+      return true; // Si hay error, consideramos que expiró
+    }
+  }
 }

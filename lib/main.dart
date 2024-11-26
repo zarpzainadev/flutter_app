@@ -1,102 +1,95 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:flutter_web_android/screens/home_screen.dart';
+import 'package:flutter_web_android/screens/home_screen_view_model.dart';
+import 'package:flutter_web_android/screens/login_screen/connectivity_handler.dart';
 import 'package:flutter_web_android/screens/login_screen/login_screen.dart';
 import 'package:flutter_web_android/storage/storage_services.dart';
 import 'package:flutter_web_android/theme/theme_provider.dart';
-import 'package:jwt_decode/jwt_decode.dart';
+import 'package:logging/logging.dart';
+import 'package:provider/provider.dart';
+import 'screens/home_screen.dart';
 
+// Logger para mejor seguimiento de errores
+final _logger = Logger('MainApp');
+
+// Constantes de la aplicación
+class AppConstants {
+  static const String appTitle = 'Flutter Web to Android';
+  static const int sessionTimeout = 15; // minutos
+  static const int warningTimeout = 2;
+}
+
+// main.dart optimizado
 void main() async {
   try {
     WidgetsFlutterBinding.ensureInitialized();
 
-    // Inicializar servicios en paralelo
-    await Future.wait([
-      StorageService.init(),
-      dotenv.load(),
-    ]);
+    await dotenv.load(fileName: ".env");
+    await StorageService.init();
 
-    // Verificar sesión con mejor manejo de errores
     Widget initialScreen;
     try {
       final hasSession = await checkSession();
-      initialScreen = hasSession ? const HomeScreen() : LoginScreen();
+      initialScreen = hasSession ? const HomeScreen() : const LoginScreen();
     } catch (e) {
-      print('Error en verificación de sesión: $e');
-      initialScreen = LoginScreen();
+      initialScreen = const LoginScreen();
     }
 
-    runApp(MyApp(initialScreen: initialScreen));
+    runApp(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider(create: (_) => ThemeProvider()),
+        ],
+        child: MyApp(
+          initialScreen: ConnectivityHandler(
+            child: initialScreen,
+          ),
+          navigatorKey: GlobalKey<NavigatorState>(),
+        ),
+      ),
+    );
   } catch (e) {
-    print('Error en inicialización: $e');
-    runApp(MyApp(initialScreen: LoginScreen()));
-  }
-}
-
-class MyApp extends StatefulWidget {
-  final Widget initialScreen;
-
-  const MyApp({Key? key, required this.initialScreen}) : super(key: key);
-
-  @override
-  _MyAppState createState() => _MyAppState();
-
-  static _MyAppState? of(BuildContext context) =>
-      context.findAncestorStateOfType<_MyAppState>();
-}
-
-class _MyAppState extends State<MyApp> {
-  ThemeMode _themeMode = ThemeMode.light;
-
-  void setThemeMode(ThemeMode themeMode) {
-    setState(() {
-      _themeMode = themeMode;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Web to Android',
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
-      themeMode: _themeMode,
-      home: widget.initialScreen,
+    runApp(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: Text('Error crítico: $e'),
+          ),
+        ),
+      ),
     );
   }
 }
 
-Future<bool> checkSession() async {
-  try {
-    final savedToken = await StorageService.getToken();
-    if (savedToken != null) {
-      if (isTokenExpired(savedToken.accessToken)) {
-        print('Token expirado, limpiando...');
-        await StorageService.clearAll();
-        return false;
-      }
-      return true;
-    }
-    print('No hay token guardado');
-    return false;
-  } catch (e) {
-    print('Error checking session: $e');
-    await StorageService.clearAll();
-    return false;
+class MyApp extends StatelessWidget {
+  final Widget initialScreen;
+  final GlobalKey<NavigatorState> navigatorKey;
+
+  const MyApp({
+    Key? key,
+    required this.initialScreen,
+    required this.navigatorKey,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: AppConstants.appTitle,
+      navigatorKey: navigatorKey,
+      debugShowCheckedModeBanner: false,
+      theme: context.watch<ThemeProvider>().getTheme(),
+      home: initialScreen,
+    );
   }
 }
 
-bool isTokenExpired(String token) {
+// Helper para verificar sesión
+Future<bool> checkSession() async {
   try {
-    final Map<String, dynamic> decodedToken = Jwt.parseJwt(token);
-    final int expiration = decodedToken['exp'];
-    final int currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-
-    print(
-        'Token expira en: ${DateTime.fromMillisecondsSinceEpoch(expiration * 1000)}');
-    return currentTime >= expiration;
+    final token = await StorageService.getToken();
+    return token != null;
   } catch (e) {
-    print('Error al verificar expiración: $e');
-    return true;
+    _logger.warning('Error al verificar token: $e');
+    return false;
   }
 }

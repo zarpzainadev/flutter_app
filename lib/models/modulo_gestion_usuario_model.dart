@@ -743,3 +743,175 @@ class MeetingResponse {
 
   bool get publicada => estado == 'Publicada';
 }
+
+//modelos de respuesta de ruta de crear acta
+class ActaResponse {
+  final int id;
+  final int reunionId;
+  final DateTime fechaSubida;
+  final String estado;
+
+  ActaResponse({
+    required this.id,
+    required this.reunionId,
+    required this.fechaSubida,
+    required this.estado,
+  });
+
+  factory ActaResponse.fromJson(Map<String, dynamic> json) {
+    return ActaResponse(
+      id: json['id'] as int,
+      reunionId: json['reunion_id'] as int,
+      fechaSubida: DateTime.parse(json['fecha_subida']),
+      estado: json['estado'] as String,
+    );
+  }
+}
+
+class ActaError implements Exception {
+  final String message;
+  final int? statusCode;
+
+  ActaError(this.message, {this.statusCode});
+
+  @override
+  String toString() => message;
+}
+
+//modelo de respuesta de ruta de subir el acta
+class ContenidoActaResponse {
+  final int id;
+  final int actaId;
+  final String tipoMime;
+
+  ContenidoActaResponse({
+    required this.id,
+    required this.actaId,
+    required this.tipoMime,
+  });
+
+  factory ContenidoActaResponse.fromJson(Map<String, dynamic> json) {
+    return ContenidoActaResponse(
+      id: json['id'] as int,
+      actaId: json['acta_id'] as int,
+      tipoMime: json['tipo_mime'] as String,
+    );
+  }
+}
+
+// Modelo de error
+class ContenidoActaError implements Exception {
+  final String message;
+  final int? statusCode;
+
+  ContenidoActaError(this.message, {this.statusCode});
+
+  @override
+  String toString() => message;
+}
+
+//modelo de erro de la ruta para descargar el acta
+// Modelo de error específico para descarga
+class DownloadActaError implements Exception {
+  final String message;
+  final int? statusCode;
+
+  DownloadActaError(this.message, {this.statusCode});
+
+  @override
+  String toString() => message;
+}
+
+//modelo de respuesta de ruta de crear trabajo
+class TrabajoResponse {
+  final int id;
+  final int usuarioId;
+  final int reunionId;
+  final String titulo;
+  final String descripcion;
+  final DateTime fechaPresentacion;
+  final String estado;
+
+  TrabajoResponse({
+    required this.id,
+    required this.usuarioId,
+    required this.reunionId,
+    required this.titulo,
+    required this.descripcion,
+    required this.fechaPresentacion,
+    required this.estado,
+  });
+
+  factory TrabajoResponse.fromJson(Map<String, dynamic> json) {
+    return TrabajoResponse(
+      id: json['id'] as int,
+      usuarioId: json['usuario_id'] as int,
+      reunionId: json['reunion_id'] as int,
+      titulo: json['titulo'] as String,
+      descripcion: json['descripcion'] as String,
+      fechaPresentacion: DateTime.parse(json['fecha_presentacion']),
+      estado: json['estado'] as String,
+    );
+  }
+}
+
+// Modelo de error
+class TrabajoError implements Exception {
+  final String message;
+  final int? statusCode;
+
+  TrabajoError(this.message, {this.statusCode});
+
+  @override
+  String toString() => message;
+}
+
+//modelo de respuesta de actualizar trabajo
+
+class TrabajoUpdateRequest {
+  final String? titulo;
+  final String? descripcion;
+  final String? estado;
+  final DateTime? fechaPresentacion;
+
+  TrabajoUpdateRequest({
+    this.titulo,
+    this.descripcion,
+    this.estado,
+    this.fechaPresentacion,
+  });
+
+  Map<String, dynamic> toJson() {
+    final Map<String, dynamic> data = {};
+    if (titulo != null) data['titulo'] = titulo;
+    if (descripcion != null) data['descripcion'] = descripcion;
+    if (estado != null) data['estado'] = estado;
+    if (fechaPresentacion != null) {
+      data['fecha_presentacion'] =
+          fechaPresentacion!.toIso8601String().split('T')[0];
+    }
+    return data;
+  }
+}
+
+// Modelo de error específico
+class TrabajoUpdateError implements Exception {
+  final String message;
+  final int? statusCode;
+
+  TrabajoUpdateError(this.message, {this.statusCode});
+
+  @override
+  String toString() => message;
+}
+
+// Modelo de error para reportes
+class ReportError implements Exception {
+  final String message;
+  final int? statusCode;
+
+  ReportError(this.message, {this.statusCode});
+
+  @override
+  String toString() => message;
+}

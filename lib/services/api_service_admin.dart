@@ -507,4 +507,416 @@ class ApiServiceAdmin {
       throw Exception('Error inesperado: $e');
     }
   }
+
+  //Crear acta
+  Future<ActaResponse> createActa(String token, int reunionId) async {
+    try {
+      final response = await _dio.post(
+        '/meeting/actas/',
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+          validateStatus: (status) => status! < 500,
+        ),
+        data: {
+          'reunion_id': reunionId,
+        },
+      );
+
+      debugPrint('Response status: ${response.statusCode}');
+      debugPrint('Response data: ${response.data}');
+
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        return ActaResponse.fromJson(response.data);
+      }
+
+      if (response.statusCode == 404) {
+        throw ActaError('Reunión no encontrada', statusCode: 404);
+      }
+
+      throw ActaError(
+        'Error del servidor: ${response.statusCode} - ${response.data}',
+        statusCode: response.statusCode,
+      );
+    } on DioException catch (e) {
+      debugPrint('DioException en createActa: ${e.message}');
+      throw ActaError('Error de red: ${e.message}');
+    } catch (e) {
+      debugPrint('Error inesperado en createActa: $e');
+      throw ActaError('Error inesperado: $e');
+    }
+  }
+
+  //subir contenido de acta
+  Future<ContenidoActaResponse> uploadContenidoActa(
+    String token,
+    int actaId,
+    List<int> fileBytes,
+    String fileName,
+  ) async {
+    try {
+      final formData = FormData.fromMap({
+        'file': MultipartFile.fromBytes(
+          fileBytes,
+          filename: fileName,
+          contentType: MediaType('application', 'pdf'),
+        ),
+      });
+
+      final response = await _dio.post(
+        '/meeting/actas/$actaId/contenido',
+        data: formData,
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+          },
+          validateStatus: (status) => status! < 500,
+        ),
+      );
+
+      debugPrint('Response status: ${response.statusCode}');
+      debugPrint('Response data: ${response.data}');
+
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        return ContenidoActaResponse.fromJson(response.data);
+      }
+
+      if (response.statusCode == 404) {
+        throw ContenidoActaError('Acta no encontrada', statusCode: 404);
+      }
+
+      if (response.statusCode == 400) {
+        throw ContenidoActaError('El archivo debe ser un PDF', statusCode: 400);
+      }
+
+      throw ContenidoActaError(
+        'Error del servidor: ${response.statusCode} - ${response.data}',
+        statusCode: response.statusCode,
+      );
+    } on DioException catch (e) {
+      debugPrint('DioException en uploadContenidoActa: ${e.message}');
+      throw ContenidoActaError('Error de red: ${e.message}');
+    } catch (e) {
+      debugPrint('Error inesperado en uploadContenidoActa: $e');
+      throw ContenidoActaError('Error inesperado: $e');
+    }
+  }
+
+  //ruta para descargar el contenido de un acta
+  Future<(List<int>, String)> downloadActa(String token, int actaId) async {
+    try {
+      final response = await _dio.get(
+        '/meeting/meetings/minutes/$actaId/download',
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+          },
+          responseType: ResponseType.bytes,
+          validateStatus: (status) => status! < 500,
+        ),
+      );
+
+      debugPrint('Response status: ${response.statusCode}');
+
+      if (response.statusCode == 200) {
+        final contentDisposition =
+            response.headers.value('content-disposition');
+        final fileName = contentDisposition != null
+            ? RegExp(r'filename="([^"]*)"')
+                .firstMatch(contentDisposition)
+                ?.group(1)
+            : 'acta.pdf';
+
+        return (response.data as List<int>, fileName ?? 'acta.pdf');
+      }
+
+      if (response.statusCode == 404) {
+        throw DownloadActaError(
+          'Acta no encontrada o sin contenido',
+          statusCode: 404,
+        );
+      }
+
+      if (response.statusCode == 403) {
+        throw DownloadActaError(
+          'No tiene permisos para descargar esta acta',
+          statusCode: 403,
+        );
+      }
+
+      throw DownloadActaError(
+        'Error del servidor: ${response.statusCode}',
+        statusCode: response.statusCode,
+      );
+    } on DioException catch (e) {
+      debugPrint('DioException en downloadActa: ${e.message}');
+      throw DownloadActaError('Error de red: ${e.message}');
+    } catch (e) {
+      debugPrint('Error inesperado en downloadActa: $e');
+      throw DownloadActaError('Error inesperado: $e');
+    }
+  }
+
+  //ruta para crear trabajo
+  Future<TrabajoResponse> createTrabajo(
+    String token,
+    int reunionId,
+    int usuarioId,
+    String titulo,
+    String descripcion,
+    DateTime fechaPresentacion,
+  ) async {
+    try {
+      final response = await _dio.post(
+        '/meeting/create/',
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+          validateStatus: (status) => status! < 500,
+        ),
+        data: {
+          'reunion_id': reunionId,
+          'usuario_id': usuarioId,
+          'titulo': titulo,
+          'descripcion': descripcion,
+          'fecha_presentacion':
+              fechaPresentacion.toIso8601String().split('T')[0],
+        },
+      );
+
+      debugPrint('Response status: ${response.statusCode}');
+      debugPrint('Response data: ${response.data}');
+
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        return TrabajoResponse.fromJson(response.data);
+      }
+
+      if (response.statusCode == 404) {
+        throw TrabajoError('Reunión o usuario no encontrado', statusCode: 404);
+      }
+
+      throw TrabajoError(
+        'Error del servidor: ${response.statusCode} - ${response.data}',
+        statusCode: response.statusCode,
+      );
+    } on DioException catch (e) {
+      debugPrint('DioException en createTrabajo: ${e.message}');
+      throw TrabajoError('Error de red: ${e.message}');
+    } catch (e) {
+      debugPrint('Error inesperado en createTrabajo: $e');
+      throw TrabajoError('Error inesperado: $e');
+    }
+  }
+
+  // ruta para actualizar trabajo
+  Future<TrabajoResponse> updateTrabajo(
+    String token,
+    int trabajoId,
+    TrabajoUpdateRequest update,
+  ) async {
+    try {
+      final response = await _dio.put(
+        '/meeting/update/$trabajoId',
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+          validateStatus: (status) => status! < 500,
+        ),
+        data: update.toJson(),
+      );
+
+      debugPrint('Response status: ${response.statusCode}');
+      debugPrint('Response data: ${response.data}');
+
+      if (response.statusCode == 200) {
+        return TrabajoResponse.fromJson(response.data);
+      }
+
+      if (response.statusCode == 404) {
+        throw TrabajoUpdateError(
+          'Trabajo no encontrado',
+          statusCode: 404,
+        );
+      }
+
+      if (response.statusCode == 403) {
+        throw TrabajoUpdateError(
+          'No tiene permisos para actualizar este trabajo',
+          statusCode: 403,
+        );
+      }
+
+      throw TrabajoUpdateError(
+        'Error del servidor: ${response.statusCode} - ${response.data}',
+        statusCode: response.statusCode,
+      );
+    } on DioException catch (e) {
+      debugPrint('DioException en updateTrabajo: ${e.message}');
+      throw TrabajoUpdateError('Error de red: ${e.message}');
+    } catch (e) {
+      debugPrint('Error inesperado en updateTrabajo: $e');
+      throw TrabajoUpdateError('Error inesperado: $e');
+    }
+  }
+
+  // metodo para listar trabajos por id
+  Future<TrabajoResponse> getTrabajo(String token, int trabajoId) async {
+    try {
+      final response = await _dio.get(
+        '/meeting/$trabajoId',
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+          },
+          validateStatus: (status) => status! < 500,
+        ),
+      );
+
+      debugPrint('Response status: ${response.statusCode}');
+      debugPrint('Response data: ${response.data}');
+
+      if (response.statusCode == 200) {
+        return TrabajoResponse.fromJson(response.data);
+      }
+
+      if (response.statusCode == 404) {
+        throw TrabajoError(
+          'Trabajo no encontrado',
+          statusCode: 404,
+        );
+      }
+
+      throw TrabajoError(
+        'Error del servidor: ${response.statusCode} - ${response.data}',
+        statusCode: response.statusCode,
+      );
+    } on DioException catch (e) {
+      debugPrint('DioException en getTrabajo: ${e.message}');
+      throw TrabajoError('Error de red: ${e.message}');
+    } catch (e) {
+      debugPrint('Error inesperado en getTrabajo: $e');
+      throw TrabajoError('Error inesperado: $e');
+    }
+  }
+
+  // 1. Reporte de reuniones
+  Future<List<int>> generateMeetingsReport(String token, String formato) async {
+    try {
+      final response = await _dio.get(
+        '/meeting/reportes/reuniones',
+        options: Options(
+          headers: {'Authorization': 'Bearer $token'},
+          responseType: ResponseType.bytes,
+          validateStatus: (status) => status! < 500,
+        ),
+        queryParameters: {'formato': formato},
+      );
+
+      if (response.statusCode == 200) {
+        return response.data;
+      }
+
+      throw ReportError(
+        response.data['detail'] ?? 'Error al generar reporte',
+        statusCode: response.statusCode,
+      );
+    } on DioException catch (e) {
+      throw ReportError('Error de red: ${e.message}');
+    }
+  }
+
+// 2. Reporte de trabajos
+  Future<List<int>> generateWorksReport(String token, String formato) async {
+    try {
+      final response = await _dio.get(
+        '/meeting/reportes/trabajos',
+        options: Options(
+          headers: {'Authorization': 'Bearer $token'},
+          responseType: ResponseType.bytes,
+          validateStatus: (status) => status! < 500,
+        ),
+        queryParameters: {'formato': formato},
+      );
+
+      if (response.statusCode == 200) {
+        return response.data;
+      }
+
+      throw ReportError(
+        response.data['detail'] ?? 'Error al generar reporte',
+        statusCode: response.statusCode,
+      );
+    } on DioException catch (e) {
+      throw ReportError('Error de red: ${e.message}');
+    }
+  }
+
+// 3. Reporte de actas
+  Future<List<int>> generateMinutesReport(String token, String formato) async {
+    try {
+      final response = await _dio.get(
+        '/meeting/reportes/actas',
+        options: Options(
+          headers: {'Authorization': 'Bearer $token'},
+          responseType: ResponseType.bytes,
+          validateStatus: (status) => status! < 500,
+        ),
+        queryParameters: {'formato': formato},
+      );
+
+      if (response.statusCode == 200) {
+        return response.data;
+      }
+
+      throw ReportError(
+        response.data['detail'] ?? 'Error al generar reporte',
+        statusCode: response.statusCode,
+      );
+    } on DioException catch (e) {
+      throw ReportError('Error de red: ${e.message}');
+    }
+  }
+
+// 4. Reporte de asistencia
+  Future<List<int>> generateAttendanceReport(
+    String token,
+    int userId,
+    String startDate,
+    String endDate,
+    String formato,
+  ) async {
+    try {
+      final response = await _dio.get(
+        '/meeting/reportes/asistencia',
+        options: Options(
+          headers: {'Authorization': 'Bearer $token'},
+          responseType: ResponseType.bytes,
+          validateStatus: (status) => status! < 500,
+        ),
+        queryParameters: {
+          'user_id': userId,
+          'start_date': startDate,
+          'end_date': endDate,
+          'formato': formato,
+        },
+      );
+
+      if (response.statusCode == 200) {
+        return response.data;
+      }
+
+      throw ReportError(
+        response.data['detail'] ?? 'Error al generar reporte',
+        statusCode: response.statusCode,
+      );
+    } on DioException catch (e) {
+      throw ReportError('Error de red: ${e.message}');
+    }
+  }
 }

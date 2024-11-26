@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 
-class MeetingReminderCard extends StatelessWidget {
+class MeetingReminderCard1 extends StatelessWidget {
   final String date;
   final String place;
   final List<String> agenda;
 
-  const MeetingReminderCard({
+  const MeetingReminderCard1({
     Key? key,
     required this.date,
     required this.place,

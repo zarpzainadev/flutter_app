@@ -19,15 +19,13 @@ class ListUserViewModel extends ChangeNotifier {
   final _cache = <int, UserDetail>{};
   final _debouncer = Debouncer(milliseconds: 500);
   bool isLoading = false;
+  bool _disposed = false;
   String? errorMessage;
   List<User> users = [];
   Timer? _refreshTimer;
 
   ListUserViewModel({ApiServiceAdmin? apiService})
-      : _apiService = apiService ?? ApiServiceAdmin() {
-    _initializeRefreshTimer();
-    initialize();
-  }
+      : _apiService = apiService ?? ApiServiceAdmin();
 
   // Mantener columnas existentes
   List<ColumnConfig> get columns => [
@@ -75,7 +73,7 @@ class ListUserViewModel extends ChangeNotifier {
 
     try {
       isLoading = true;
-      notifyListeners();
+      _safeNotifyListeners();
 
       final token = await _getToken();
       users = await _apiService.listUsers(token);
@@ -85,7 +83,7 @@ class ListUserViewModel extends ChangeNotifier {
       debugPrint('Error en listUsers: $e');
     } finally {
       isLoading = false;
-      notifyListeners();
+      _safeNotifyListeners();
     }
   }
 
@@ -93,7 +91,7 @@ class ListUserViewModel extends ChangeNotifier {
       CambioEstadoCreate cambio, List<Uint8List> documentos) async {
     try {
       isLoading = true;
-      notifyListeners();
+      _safeNotifyListeners();
 
       final token = await _getToken();
       final response = await _apiService.cambiarEstadoUsuario(token, cambio);
@@ -110,7 +108,7 @@ class ListUserViewModel extends ChangeNotifier {
       return false;
     } finally {
       isLoading = false;
-      notifyListeners();
+      _safeNotifyListeners();
     }
   }
 
@@ -121,7 +119,7 @@ class ListUserViewModel extends ChangeNotifier {
   }) async {
     try {
       isLoading = true;
-      notifyListeners();
+      _safeNotifyListeners();
 
       final token = await _getToken();
       final reportRequest = ReportRequest(
@@ -141,7 +139,7 @@ class ListUserViewModel extends ChangeNotifier {
       errorMessage = 'Error al generar reporte: $e';
     } finally {
       isLoading = false;
-      notifyListeners();
+      _safeNotifyListeners();
     }
   }
 
@@ -209,31 +207,73 @@ class ListUserViewModel extends ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
     _refreshTimer?.cancel();
     _cache.clear();
     super.dispose();
   }
 
+  void _safeNotifyListeners() {
+    if (!_disposed) {
+      notifyListeners();
+    }
+  }
+
   // list_user_viewmodel.dart
   void showChangeEstadoModal(BuildContext context, Map<String, dynamic> row) {
+    if (_disposed) return; // Prevenir llamadas si está disposed
+
     showDialog(
       context: context,
-      builder: (context) => ChangeEstadoModal(
+      barrierDismissible: false, // Prevenir cierre accidental
+      builder: (dialogContext) => ChangeEstadoModal(
         estadoActual: row['estado_usuario_nombre'],
         onSubmit: (estadoId, comentario, fileBytes) async {
-          final cambio = CambioEstadoCreate(
-            usuario_id: row['id'],
-            estado_nuevo_id: estadoId, // Cambiado a ID
-            comentario: comentario,
-          );
+          try {
+            // Mostrar loading
+            showDialog(
+              context: dialogContext,
+              barrierDismissible: false,
+              builder: (_) => const Center(child: CircularProgressIndicator()),
+            );
 
-          final success = await cambiarEstadoUsuario(
-            cambio,
-            [Uint8List.fromList(fileBytes)],
-          );
+            final cambio = CambioEstadoCreate(
+              usuario_id: row['id'],
+              estado_nuevo_id: estadoId,
+              comentario: comentario,
+            );
 
-          if (success) {
-            listUsers(forceRefresh: true);
+            final success = await cambiarEstadoUsuario(
+              cambio,
+              [Uint8List.fromList(fileBytes)],
+            );
+
+            // Cerrar loading
+            Navigator.pop(dialogContext);
+
+            if (success) {
+              // Cerrar modal
+              Navigator.pop(dialogContext);
+
+              // Actualizar lista
+              if (!_disposed) {
+                listUsers(forceRefresh: true);
+              }
+
+              // Mostrar éxito
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                    content: Text('Estado actualizado correctamente')),
+              );
+            }
+          } catch (e) {
+            // Cerrar loading si hay error
+            Navigator.pop(dialogContext);
+
+            // Mostrar error
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Error: $e')),
+            );
           }
         },
       ),

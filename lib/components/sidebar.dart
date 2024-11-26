@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_web_android/screens/Users/list_user_screen.dart';
+import 'package:flutter_web_android/screens/Users/list_user_viewmodel.dart';
 import 'package:flutter_web_android/screens/Users/user_register/user_register_screen.dart';
 import 'package:flutter_web_android/screens/Users/user_register/user_register_viewmodel.dart';
 import 'package:flutter_web_android/screens/calendar/calendar_screen.dart';
+import 'package:flutter_web_android/screens/calendar/calendar_viewmodel.dart';
+import 'package:flutter_web_android/screens/meetings/list_meeting_viewmodel.dart';
 import 'package:flutter_web_android/screens/meetings/list_meetings.dart';
 import 'package:provider/provider.dart';
 
@@ -56,20 +59,17 @@ final Map<String, ScreenGroup> screenGroups = {
   ),
   'admin_options': ScreenGroup(
     identifier: 'admin_options',
-    name: 'Gestion de usuarios',
+    name: 'Gestión de usuarios',
     items: [
       SidebarItem(
         icon: Icons.admin_panel_settings,
         label: 'Usuarios',
-        screen: ListUserScreen(),
+        screen: const ListUserScreen(),
       ),
       SidebarItem(
         icon: Icons.person_add,
         label: 'Registrar Usuario',
-        screen: ChangeNotifierProvider(
-          create: (_) => UserRegisterViewModel(),
-          child: const UserRegisterScreen(),
-        ),
+        screen: const UserRegisterScreen(),
       ),
       SidebarItem(
         icon: Icons.monitor,
@@ -85,16 +85,14 @@ final Map<String, ScreenGroup> screenGroups = {
       SidebarItem(
         icon: Icons.assignment,
         label: 'Reuniones',
-        screen: ListMeetings(),
+        screen: const ListMeetings(),
       ),
       SidebarItem(
         icon: Icons.calendar_today,
         label: 'Calendario de Reuniones',
         screen: CalendarScreen(
-          meetings: const [], // Empty list as initial value
-          onMeetingTap: (meeting) {
-            print('Meeting tapped: ${meeting.lugar}');
-          },
+          meetings: [],
+          onMeetingTap: (meeting) {},
         ),
       ),
       SidebarItem(
@@ -110,18 +108,8 @@ final Map<String, ScreenGroup> screenGroups = {
     items: [
       SidebarItem(
         icon: Icons.person,
-        label: 'Perfil',
-        screen: const Center(child: Text('Perfil')),
-      ),
-      SidebarItem(
-        icon: Icons.message,
-        label: 'Reuniones',
-        screen: const Center(child: Text('Reuniones')),
-      ),
-      SidebarItem(
-        icon: Icons.help,
-        label: 'Ayuda',
-        screen: const Center(child: Text('Ayuda')),
+        label: 'Mi Perfil',
+        screen: const Center(child: Text('Mi Perfil')),
       ),
     ],
   ),

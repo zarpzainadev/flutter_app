@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_web_android/components/calendar_widget.dart';
+import 'package:flutter_web_android/components/custom_loading.dart';
 import 'package:flutter_web_android/models/modulo_user_meetings.dart';
 import 'package:flutter_web_android/screens/calendar/calendar_viewmodel.dart';
 import 'package:intl/intl.dart';
@@ -33,7 +34,10 @@ class CalendarScreen extends StatelessWidget {
               child: Consumer<CalendarViewModel>(
                 builder: (context, viewModel, child) {
                   if (viewModel.isLoading) {
-                    return const Center(child: CircularProgressIndicator());
+                    return Container(
+                      color: Colors.white.withOpacity(0.8),
+                      child: const CustomLoading(),
+                    );
                   }
 
                   return CalendarWidget(

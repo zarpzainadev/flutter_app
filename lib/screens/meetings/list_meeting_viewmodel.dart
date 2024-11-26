@@ -1,5 +1,6 @@
 // list_meeting_viewmodel.dart
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_web_android/components/create_meeting_modal.dart';
 import 'package:flutter_web_android/components/table_flexible.dart';
@@ -20,6 +21,7 @@ class ListMeetingViewModel extends ChangeNotifier {
   String? errorMessage;
   List<MeetingResponse> meetings = [];
   Timer? _refreshTimer;
+  bool _disposed = false;
 
   ListMeetingViewModel({ApiServiceAdmin? apiService})
       : _apiService = apiService ?? ApiServiceAdmin() {
@@ -29,8 +31,7 @@ class ListMeetingViewModel extends ChangeNotifier {
 
   // Configuración de columnas para la tabla
   List<ColumnConfig> get columns => [
-        ColumnConfig(label: 'Título', field: 'titulo', width: 200),
-        ColumnConfig(label: 'Descripción', field: 'descripcion', width: 300),
+        ColumnConfig(label: 'Agenda', field: 'descripcion', width: 300),
         ColumnConfig(label: 'Fecha', field: 'fecha', width: 150),
         ColumnConfig(label: 'Lugar', field: 'lugar', width: 150),
         ColumnConfig(label: 'Estado', field: 'estado', width: 100),
@@ -48,19 +49,34 @@ class ListMeetingViewModel extends ChangeNotifier {
         ),
         TableAction(
           icon: Icons.publish,
-          color: Colors.green, // Default color
+          color: Colors.green,
           tooltip: 'Publicar Reunión',
           onPressed: (row) {
-            if (row['estado'] == 'Publicada') {
+            if (row['estado'] == 'Publicada' || row['estado'] == 'Inactiva') {
               return null;
             }
             onPublish(context, row);
           },
-          getColor: (row) =>
-              row['estado'] == 'Publicada' ? Colors.grey : Colors.green,
-          getTooltip: (row) => row['estado'] == 'Publicada'
-              ? 'Ya está publicada'
-              : 'Publicar Reunión',
+          getColor: (row) {
+            switch (row['estado']) {
+              case 'Publicada':
+                return Colors.grey;
+              case 'Inactiva':
+                return Colors.red.shade300;
+              default:
+                return Colors.green;
+            }
+          },
+          getTooltip: (row) {
+            switch (row['estado']) {
+              case 'Publicada':
+                return 'Ya está publicada';
+              case 'Inactiva':
+                return 'No se puede publicar una reunión inactiva';
+              default:
+                return 'Publicar Reunión';
+            }
+          },
         ),
       ];
 
@@ -71,7 +87,7 @@ class ListMeetingViewModel extends ChangeNotifier {
     if (result != null) {
       try {
         isLoading = true;
-        notifyListeners();
+        _safeNotifyListeners();
 
         final token = await StorageService.getToken();
         if (token == null) {
@@ -82,7 +98,15 @@ class ListMeetingViewModel extends ChangeNotifier {
           fecha: result['fecha'] as DateTime,
           lugar: result['lugar'] as String,
           agenda: result['agenda'] as String,
+          estado: result['estado'] as String, // Agregado el estado
         );
+
+        debugPrint('Actualizando reunión con datos:');
+        debugPrint('ID: ${result['id']}');
+        debugPrint('Fecha: ${meeting.fecha}');
+        debugPrint('Lugar: ${meeting.lugar}');
+        debugPrint('Agenda: ${meeting.agenda}');
+        debugPrint('Estado: ${meeting.estado}');
 
         await _apiService.updateMeeting(
             token.accessToken, result['id'] as int, meeting);
@@ -109,7 +133,7 @@ class ListMeetingViewModel extends ChangeNotifier {
         debugPrint(errorMessage);
       } finally {
         isLoading = false;
-        notifyListeners();
+        _safeNotifyListeners();
       }
     }
   }
@@ -127,7 +151,7 @@ class ListMeetingViewModel extends ChangeNotifier {
     if (result != null) {
       try {
         isLoading = true;
-        notifyListeners();
+        _safeNotifyListeners();
 
         final token = await StorageService.getToken();
         if (token == null) {
@@ -164,7 +188,7 @@ class ListMeetingViewModel extends ChangeNotifier {
         debugPrint(errorMessage);
       } finally {
         isLoading = false;
-        notifyListeners();
+        _safeNotifyListeners();
       }
     }
   }
@@ -179,7 +203,7 @@ class ListMeetingViewModel extends ChangeNotifier {
     try {
       isLoading = true;
       errorMessage = null;
-      notifyListeners();
+      _safeNotifyListeners();
 
       final token = await StorageService.getToken();
       if (token == null) {
@@ -199,14 +223,14 @@ class ListMeetingViewModel extends ChangeNotifier {
       meetings = [];
     } finally {
       isLoading = false;
-      notifyListeners();
+      _safeNotifyListeners();
     }
   }
 
   Future<bool> createMeeting(MeetingCreate meeting) async {
     try {
       isLoading = true;
-      notifyListeners();
+      _safeNotifyListeners();
 
       final token = await _getToken();
       await _apiService.createMeeting(token, meeting);
@@ -218,14 +242,14 @@ class ListMeetingViewModel extends ChangeNotifier {
       return false;
     } finally {
       isLoading = false;
-      notifyListeners();
+      _safeNotifyListeners();
     }
   }
 
   Future<bool> updateMeeting(int meetingId, MeetingUpdate meeting) async {
     try {
       isLoading = true;
-      notifyListeners();
+      _safeNotifyListeners();
 
       final token = await _getToken();
       await _apiService.updateMeeting(token, meetingId, meeting);
@@ -237,14 +261,14 @@ class ListMeetingViewModel extends ChangeNotifier {
       return false;
     } finally {
       isLoading = false;
-      notifyListeners();
+      _safeNotifyListeners();
     }
   }
 
   Future<bool> publishMeeting(int meetingId) async {
     try {
       isLoading = true;
-      notifyListeners();
+      _safeNotifyListeners();
 
       final token = await _getToken();
       await _apiService.publishMeeting(token, meetingId);
@@ -256,7 +280,65 @@ class ListMeetingViewModel extends ChangeNotifier {
       return false;
     } finally {
       isLoading = false;
-      notifyListeners();
+      _safeNotifyListeners();
+    }
+  }
+
+  //funciones para la creacion y subida del acta
+  Future<bool> createAndUploadActa(
+      int meetingId, List<int> fileBytes, String fileName) async {
+    try {
+      isLoading = true;
+      _safeNotifyListeners();
+
+      final token = await _getToken();
+
+      // Paso 1: Crear el acta
+      final actaResponse = await _apiService.createActa(token, meetingId);
+
+      // Paso 2: Subir el contenido usando el ID del acta creada
+      await _apiService.uploadContenidoActa(
+        token,
+        actaResponse.id,
+        fileBytes,
+        fileName,
+      );
+
+      await listMeetings(forceRefresh: true);
+      return true;
+    } catch (e) {
+      errorMessage = 'Error al crear/subir acta: $e';
+      debugPrint('Error en createAndUploadActa: $e');
+      return false;
+    } finally {
+      isLoading = false;
+      _safeNotifyListeners();
+    }
+  }
+
+  Future<bool> uploadActaContent(
+      int actaId, List<int> fileBytes, String fileName) async {
+    try {
+      isLoading = true;
+      _safeNotifyListeners();
+
+      final token = await _getToken();
+      await _apiService.uploadContenidoActa(
+        token,
+        actaId,
+        fileBytes,
+        fileName,
+      );
+
+      await listMeetings(forceRefresh: true);
+      return true;
+    } catch (e) {
+      errorMessage = 'Error al subir contenido del acta: $e';
+      debugPrint('Error en uploadActaContent: $e');
+      return false;
+    } finally {
+      isLoading = false;
+      _safeNotifyListeners();
     }
   }
 
@@ -265,8 +347,7 @@ class ListMeetingViewModel extends ChangeNotifier {
     return meetings.map((meeting) {
       return {
         'id': meeting.id,
-        'titulo': meeting.agenda, // Cambiado de titulo a agenda
-        'descripcion': meeting.agenda, // Usando agenda como descripción
+        'descripcion': meeting.agenda,
         'fecha': _formatDate(meeting.fecha),
         'lugar': meeting.lugar,
         'estado': meeting.estado,
@@ -347,9 +428,19 @@ class ListMeetingViewModel extends ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
     _refreshTimer?.cancel();
-    _cache.clear();
+    if (!kIsWeb) {
+      // Limpieza adicional para móvil
+      _cache.clear();
+    }
     super.dispose();
+  }
+
+  void _safeNotifyListeners() {
+    if (!_disposed) {
+      notifyListeners();
+    }
   }
 }
 

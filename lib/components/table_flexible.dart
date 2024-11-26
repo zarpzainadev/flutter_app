@@ -25,13 +25,13 @@ class TableAction {
     required this.icon,
     required this.color,
     required this.tooltip,
-    required this.onPressed,
+    this.onPressed,
     this.getColor,
     this.getTooltip,
   });
 }
 
-class CustomDataTable extends StatelessWidget {
+class CustomDataTable extends StatefulWidget {
   final List<ColumnConfig> columns;
   final List<Map<String, dynamic>> data;
   final List<TableAction> actions;
@@ -46,15 +46,37 @@ class CustomDataTable extends StatelessWidget {
     required this.columns,
     required this.data,
     required this.actions,
-    this.title = 'Productos',
+    this.title = 'Tabla',
     this.onCreateNew,
     this.onSearch,
     this.primaryColor = const Color(0xFF1E3A8A),
     this.headerActions = const [],
   }) : super(key: key);
 
+  @override
+  State<CustomDataTable> createState() => _CustomDataTableState();
+}
+
+class _CustomDataTableState extends State<CustomDataTable> {
+  late ScrollController _verticalController;
+  late ScrollController _horizontalController;
+
   bool _isMobile(BuildContext context) =>
       MediaQuery.of(context).size.width < 600;
+
+  @override
+  void initState() {
+    super.initState();
+    _verticalController = ScrollController();
+    _horizontalController = ScrollController();
+  }
+
+  @override
+  void dispose() {
+    _verticalController.dispose();
+    _horizontalController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -76,7 +98,9 @@ class CustomDataTable extends StatelessWidget {
         children: [
           _buildHeader(context),
           const SizedBox(height: 24),
-          _buildTable(context),
+          Expanded(
+            child: _buildTableContent(context),
+          ),
           _buildFooter(context),
         ],
       ),
@@ -84,162 +108,145 @@ class CustomDataTable extends StatelessWidget {
   }
 
   Widget _buildHeader(BuildContext context) {
-    final isMobile = _isMobile(context);
-
-    return Wrap(
-      spacing: 16,
-      runSpacing: 16,
-      alignment: WrapAlignment.spaceBetween,
-      crossAxisAlignment: WrapCrossAlignment.center,
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(
-          title,
-          style: TextStyle(
-            fontSize: isMobile ? 20 : 24,
-            color: primaryColor,
+          widget.title,
+          style: const TextStyle(
+            fontSize: 20,
             fontWeight: FontWeight.bold,
           ),
         ),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
+        Row(
           children: [
-            ...headerActions,
-            if (onCreateNew != null)
-              ElevatedButton(
-                onPressed: onCreateNew,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: primaryColor,
-                  padding: EdgeInsets.symmetric(
-                    horizontal: isMobile ? 12 : 20,
-                    vertical: isMobile ? 8 : 10,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                child: Text(
-                  'CREAR NUEVO',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w500,
-                    fontSize: isMobile ? 12 : 14,
-                  ),
-                ),
-              ),
-            if (onSearch != null)
-              Container(
-                width: isMobile ? 150 : 200,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                decoration: BoxDecoration(
-                  border: Border.all(color: const Color(0xFFE5E7EB)),
-                  borderRadius: BorderRadius.circular(8),
-                ),
+            if (widget.onSearch != null)
+              SizedBox(
+                width: 200,
                 child: TextField(
-                  onChanged: onSearch,
                   decoration: const InputDecoration(
                     hintText: 'Buscar...',
-                    border: InputBorder.none,
-                    icon: Icon(Icons.search),
+                    prefixIcon: Icon(Icons.search),
                   ),
+                  onChanged: widget.onSearch,
                 ),
               ),
+            ...widget.headerActions,
           ],
         ),
       ],
     );
   }
 
-  Widget _buildTable(BuildContext context) {
-    final isMobile = _isMobile(context);
-    final tableContent = DataTable(
-      columnSpacing: isMobile ? 8 : 16,
-      horizontalMargin: isMobile ? 8 : 16,
-      headingRowHeight: isMobile ? 40 : 56,
-      dataRowHeight: isMobile ? 48 : 52,
-      columns: [
-        ...columns.map(
-          (col) => DataColumn(
-            label: Expanded(
-              child: Text(
-                col.label,
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: isMobile ? 12 : 14,
-                ),
-              ),
-            ),
-          ),
-        ),
-        if (actions.isNotEmpty) const DataColumn(label: Text('Acciones')),
-      ],
-      rows: data.map((row) {
-        return DataRow(
-          cells: [
-            ...columns.map(
-              (col) => DataCell(
-                Container(
+  Widget _buildTableContent(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final availableWidth = constraints.maxWidth;
+        final defaultColumnWidth =
+            (availableWidth - (widget.actions.isEmpty ? 0 : 120)) /
+                widget.columns.length;
+
+        return Scrollbar(
+          controller: _verticalController,
+          thumbVisibility: true,
+          child: SingleChildScrollView(
+            controller: _verticalController,
+            child: Scrollbar(
+              controller: _horizontalController,
+              thumbVisibility: true,
+              scrollbarOrientation: ScrollbarOrientation.bottom,
+              child: SingleChildScrollView(
+                controller: _horizontalController,
+                scrollDirection: Axis.horizontal,
+                child: ConstrainedBox(
                   constraints: BoxConstraints(
-                    maxWidth: col.width ?? (isMobile ? 120 : 200),
+                    minWidth: availableWidth,
                   ),
-                  child: Text(
-                    row[col.field]?.toString() ?? '',
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: isMobile ? 12 : 14,
+                  child: Theme(
+                    data: Theme.of(context).copyWith(
+                      dataTableTheme: DataTableThemeData(
+                        headingTextStyle: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: widget.primaryColor,
+                        ),
+                      ),
+                    ),
+                    child: DataTable(
+                      columnSpacing: 24,
+                      horizontalMargin: 24,
+                      columns: [
+                        ...widget.columns.map((col) => DataColumn(
+                              label: SizedBox(
+                                width: col.width ?? defaultColumnWidth,
+                                child: Text(col.label),
+                              ),
+                            )),
+                        if (widget.actions.isNotEmpty)
+                          DataColumn(
+                            label: SizedBox(
+                              width: widget.actions.length * 48.0,
+                              child: const Text('Acciones'),
+                            ),
+                          ),
+                      ],
+                      rows: widget.data
+                          .map((row) => _buildDataRow(row, defaultColumnWidth))
+                          .toList(),
                     ),
                   ),
                 ),
               ),
             ),
-            if (actions.isNotEmpty)
-              DataCell(
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: actions.map((action) {
-                    return IconButton(
-                      icon: Icon(action.icon, size: isMobile ? 20 : 24),
-                      color: action.getColor?.call(row) ?? action.color,
-                      tooltip: action.getTooltip?.call(row) ?? action.tooltip,
-                      onPressed: action.onPressed == null
-                          ? null
-                          : () => action.onPressed!(row),
-                    );
-                  }).toList(),
+          ),
+        );
+      },
+    );
+  }
+
+  DataRow _buildDataRow(Map<String, dynamic> row, double defaultColumnWidth) {
+    return DataRow(
+      cells: [
+        ...widget.columns.map((col) => DataCell(
+              SizedBox(
+                width: col.width ?? defaultColumnWidth,
+                child: Tooltip(
+                  message: row[col.field]?.toString() ?? '',
+                  child: Text(
+                    row[col.field]?.toString() ?? '',
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               ),
-          ],
-        );
-      }).toList(),
+            )),
+        if (widget.actions.isNotEmpty)
+          DataCell(
+            SizedBox(
+              width: widget.actions.length * 48.0,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: widget.actions
+                    .map(
+                      (action) => IconButton(
+                        icon: Icon(action.icon),
+                        color: action.getColor?.call(row) ?? action.color,
+                        tooltip: action.getTooltip?.call(row) ?? action.tooltip,
+                        onPressed: () => action.onPressed?.call(row),
+                      ),
+                    )
+                    .toList(),
+              ),
+            ),
+          ),
+      ],
     );
-
-    return isMobile
-        ? SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: tableContent,
-          )
-        : tableContent;
   }
 
   Widget _buildFooter(BuildContext context) {
-    final isMobile = _isMobile(context);
-
-    return Container(
-      padding: EdgeInsets.symmetric(
-        vertical: isMobile ? 8 : 16,
-        horizontal: isMobile ? 8 : 16,
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          Text(
-            '${data.length} registros',
-            style: TextStyle(
-              color: Colors.grey[600],
-              fontSize: isMobile ? 12 : 14,
-            ),
-          ),
-        ],
+    return Padding(
+      padding: const EdgeInsets.only(top: 16),
+      child: Text(
+        '${widget.data.length} registros',
+        style: const TextStyle(color: Colors.grey),
       ),
     );
   }

@@ -534,3 +534,13 @@ Map<String, dynamic> _$ReportRequestToJson(ReportRequest instance) =>
       'formato': instance.formato,
       'template': instance.template,
     };
+
+DocumentError _$DocumentErrorFromJson(Map<String, dynamic> json) =>
+    DocumentError(
+      detail: json['detail'] as String,
+    );
+
+Map<String, dynamic> _$DocumentErrorToJson(DocumentError instance) =>
+    <String, dynamic>{
+      'detail': instance.detail,
+    };

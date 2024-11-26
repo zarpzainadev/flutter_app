@@ -65,4 +65,32 @@ class ApiService {
       throw Exception('Error de conexión: $e');
     }
   }
+
+  //metodo para refrescar el accestoken y generar nuevo accesstoken
+  Future<TokenRegenerate> refreshToken(String refreshToken) async {
+    try {
+      final response = await _dio.post(
+        '/auth/token/refresh',
+        data: RefreshTokenRequest(refreshToken: refreshToken).toJson(),
+      );
+
+      if (response.statusCode == 200) {
+        return TokenRegenerate.fromJson(response.data);
+      }
+
+      throw RefreshTokenException(
+          message: 'Error al refrescar token',
+          statusCode: response.statusCode ?? 500);
+    } catch (e) {
+      if (e is DioError) {
+        if (e.response?.statusCode == 401) {
+          throw RefreshTokenException(
+              message: 'Token de refresco inválido o expirado',
+              statusCode: 401);
+        }
+      }
+      throw RefreshTokenException(
+          message: 'Error de conexión: $e', statusCode: 500);
+    }
+  }
 }

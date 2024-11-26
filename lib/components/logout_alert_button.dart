@@ -1,23 +1,30 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_web_android/components/logout_confirmation_dialog.dart';
 
-class LogoutConfirmationDialog extends StatelessWidget {
-  const LogoutConfirmationDialog({Key? key}) : super(key: key);
+class LogoutAlertButton extends StatelessWidget {
+  final VoidCallback onLogout;
+
+  const LogoutAlertButton({
+    Key? key,
+    required this.onLogout,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Cerrar sesión'),
-      content: const Text('¿Estás seguro que deseas cerrar sesión?'),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(false),
-          child: const Text('Cancelar'),
-        ),
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(true),
-          child: const Text('Cerrar sesión'),
-        ),
-      ],
+    return IconButton(
+      icon: const Icon(Icons.logout),
+      onPressed: () => _showLogoutDialog(context),
     );
+  }
+
+  Future<void> _showLogoutDialog(BuildContext context) async {
+    final shouldLogout = await showDialog<bool>(
+      context: context,
+      builder: (_) => const LogoutConfirmationDialog(),
+    );
+
+    if (shouldLogout ?? false) {
+      onLogout();
+    }
   }
 }
