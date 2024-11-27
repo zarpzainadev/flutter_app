@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_web_android/components/custom_loading.dart';
+import 'package:flutter_web_android/components/report_meeting_modal.dart';
 import 'package:flutter_web_android/components/table_flexible.dart';
 import 'package:provider/provider.dart';
 import 'list_meeting_viewmodel.dart';
@@ -43,6 +44,93 @@ class _ListMeetingsContent extends StatelessWidget {
                         style: TextStyle(color: Colors.red.shade700),
                       ),
                     ),
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final isSmallScreen =
+                          MediaQuery.of(context).size.width < 600;
+                      return Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              ElevatedButton(
+                                onPressed: () =>
+                                    viewModel.onCreateMeeting(context),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF1E3A8A),
+                                  foregroundColor: Colors.white,
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: isSmallScreen ? 8 : 16,
+                                    vertical: isSmallScreen ? 8 : 12,
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.add, size: 20),
+                                    if (!isSmallScreen) ...[
+                                      const SizedBox(width: 8),
+                                      const Text('Crear Reunión'),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                              ElevatedButton(
+                                onPressed: () =>
+                                    viewModel.listMeetings(forceRefresh: true),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF1E3A8A),
+                                  foregroundColor: Colors.white,
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: isSmallScreen ? 8 : 16,
+                                    vertical: isSmallScreen ? 8 : 12,
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.refresh, size: 20),
+                                    if (!isSmallScreen) ...[
+                                      const SizedBox(width: 8),
+                                      const Text('Actualizar'),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                              ElevatedButton(
+                                onPressed: () => showReportMeetingModal(
+                                  context,
+                                  (formato) =>
+                                      viewModel.generateMeetingsReport(formato),
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF1E3A8A),
+                                  foregroundColor: Colors.white,
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: isSmallScreen ? 8 : 16,
+                                    vertical: isSmallScreen ? 8 : 12,
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.download, size: 20),
+                                    if (!isSmallScreen) ...[
+                                      const SizedBox(width: 8),
+                                      const Text('Descargar Reporte'),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 16),
                   Expanded(
                     child: CustomDataTable(
                       columns: viewModel.columns,
@@ -50,48 +138,12 @@ class _ListMeetingsContent extends StatelessWidget {
                       actions: viewModel.getActions(context),
                       title: 'Reuniones',
                       primaryColor: const Color(0xFF1E3A8A),
-                      onCreateNew: () => viewModel.onCreateMeeting(context),
-                      headerActions: [
-                        ElevatedButton.icon(
-                          onPressed: () => viewModel.onCreateMeeting(context),
-                          icon: const Icon(Icons.add),
-                          label: const Text('Crear Reunión'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF1E3A8A),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 12,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8), // Espaciado entre botones
-                        ElevatedButton.icon(
-                          onPressed: () =>
-                              viewModel.listMeetings(forceRefresh: true),
-                          icon: const Icon(Icons.refresh),
-                          label: const Text('Actualizar'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF1E3A8A),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 12,
-                            ),
-                          ),
-                        ),
-                      ],
                     ),
                   ),
                 ],
               ),
             ),
-            if (viewModel.isLoading)
-              Container(
-                color: Colors.white
-                    .withOpacity(0.8), // Fondo más claro y profesional
-                child: const CustomLoading(), // Nuestro nuevo loader
-              ),
+            if (viewModel.isLoading) const CustomLoading(),
           ],
         );
       },

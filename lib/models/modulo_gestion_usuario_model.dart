@@ -915,3 +915,97 @@ class ReportError implements Exception {
   @override
   String toString() => message;
 }
+
+//modelos de rutas de asistencia
+class UsuarioAsistenciaModel {
+  final int id;
+  final String nombres;
+  final String apellidosPaterno;
+  final String apellidosMaterno;
+
+  UsuarioAsistenciaModel({
+    required this.id,
+    required this.nombres,
+    required this.apellidosPaterno,
+    required this.apellidosMaterno,
+  });
+
+  factory UsuarioAsistenciaModel.fromJson(Map<String, dynamic> json) {
+    return UsuarioAsistenciaModel(
+      id: json['id'] ?? 0,
+      nombres: json['nombres'] ?? '',
+      apellidosPaterno: json['apellidos_paterno'] ?? '',
+      apellidosMaterno: json['apellidos_materno'] ?? '',
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'nombres': nombres,
+        'apellidos_paterno': apellidosPaterno,
+        'apellidos_materno': apellidosMaterno,
+      };
+}
+
+enum EstadoAsistencia { Asistido, No_asistido, Justificado }
+
+class AsistenciaCreate {
+  final int usuarioId;
+  final EstadoAsistencia estado;
+
+  AsistenciaCreate({
+    required this.usuarioId,
+    required this.estado,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'usuario_id': usuarioId,
+        'estado': estado.toString().split('.').last,
+      };
+}
+
+class AsistenciaMasiva {
+  final int reunionId;
+  final List<AsistenciaCreate> asistencias;
+  final DateTime fecha;
+
+  AsistenciaMasiva({
+    required this.reunionId,
+    required this.asistencias,
+    required this.fecha,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'reunion_id': reunionId,
+        'asistencias': asistencias.map((a) => a.toJson()).toList(),
+        'fecha': fecha.toIso8601String().split('T').first,
+      };
+}
+
+class AsistenciaResponse {
+  final int id;
+  final int usuarioId;
+  final EstadoAsistencia estado;
+  final DateTime fecha;
+  final UsuarioAsistenciaModel usuario;
+
+  AsistenciaResponse({
+    required this.id,
+    required this.usuarioId,
+    required this.estado,
+    required this.fecha,
+    required this.usuario,
+  });
+
+  factory AsistenciaResponse.fromJson(Map<String, dynamic> json) {
+    return AsistenciaResponse(
+      id: json['id'],
+      usuarioId: json['usuario_id'],
+      estado: EstadoAsistencia.values.firstWhere(
+        (e) => e.toString().split('.').last == json['estado'],
+      ),
+      fecha: DateTime.parse(json['fecha']),
+      usuario: UsuarioAsistenciaModel.fromJson(json['usuario']),
+    );
+  }
+}

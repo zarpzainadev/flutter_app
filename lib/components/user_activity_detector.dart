@@ -1,5 +1,8 @@
+// user_activity_detector.dart
+
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_web_android/components/loading_session_widget.dart';
 
 class UserActivityDetector extends StatefulWidget {
   final Widget child;
@@ -37,16 +40,31 @@ class _UserActivityDetectorState extends State<UserActivityDetector>
 
   void _resetTimer() {
     _inactivityTimer?.cancel();
-    _inactivityTimer = Timer(widget.inactivityDuration, widget.onInactive);
+    _inactivityTimer = Timer(widget.inactivityDuration, _handleInactivity);
+  }
+
+  Future<void> _handleInactivity() async {
+    // Mostrar el LoadingSessionWidget
+    if (mounted) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const LoadingSessionWidget(),
+      );
+
+      // Esperar 2 segundos para mostrar la animación
+      await Future.delayed(const Duration(seconds: 2));
+
+      // Ejecutar el callback de inactividad (logout)
+      widget.onInactive();
+    }
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused) {
-      // App en segundo plano
       _inactivityTimer?.cancel();
     } else if (state == AppLifecycleState.resumed) {
-      // App vuelve a primer plano
       _resetTimer();
     }
   }

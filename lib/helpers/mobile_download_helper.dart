@@ -120,3 +120,51 @@ Future<void> handleWebDocumentDownload(
     List<int> bytes, String nombre, String formato) async {
   throw UnsupportedError('Web download not supported on mobile');
 }
+
+Future<void> handleMeetingMobileDownload(
+    List<int> bytes, String formato) async {
+  try {
+    // Verificar permisos
+    var storageStatus = await Permission.storage.status;
+    var manageStatus = await Permission.manageExternalStorage.status;
+
+    if (!storageStatus.isGranted || !manageStatus.isGranted) {
+      final statuses = await [
+        Permission.storage,
+        Permission.manageExternalStorage,
+      ].request();
+
+      if (!statuses.values.every((status) => status.isGranted)) {
+        await openAppSettings();
+        throw Exception('Se requieren permisos de almacenamiento');
+      }
+    }
+
+    // Obtener directorio
+    Directory? directory;
+    try {
+      directory = Directory('/storage/emulated/0/Download');
+      if (!await directory.exists()) {
+        await directory.create(recursive: true);
+      }
+    } catch (e) {
+      directory = await getExternalStorageDirectory();
+      if (directory == null) {
+        throw Exception('No se pudo acceder al almacenamiento');
+      }
+    }
+
+    // Guardar archivo
+    String fileName = 'reporte_reuniones.$formato';
+    String filePath = '${directory.path}/$fileName';
+
+    File file = File(filePath);
+    await file.writeAsBytes(bytes);
+  } catch (e) {
+    rethrow;
+  }
+}
+
+Future<void> handleMeetingWebDownload(List<int> bytes, String formato) async {
+  throw UnsupportedError('Web download not supported on mobile');
+}

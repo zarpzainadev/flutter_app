@@ -13,6 +13,14 @@ class CalendarViewModel extends ChangeNotifier {
 
   DateTime? selectedDate; // Agregar para manejar la selección
 
+  final ValueNotifier<List<MeetingModel>> selectedDayEvents = ValueNotifier([]);
+  DateTime _selectedDay = DateTime.now();
+  DateTime _focusedDay = DateTime.now();
+
+  // Getters
+  DateTime get selectedDay => _selectedDay;
+  DateTime get focusedDay => _focusedDay;
+
   void _safeNotifyListeners() {
     if (!_disposed) {
       notifyListeners();
@@ -21,8 +29,22 @@ class CalendarViewModel extends ChangeNotifier {
 
   @override
   void dispose() {
+    selectedDayEvents.dispose();
     _disposed = true;
     super.dispose();
+  }
+
+  void updateSelectedDay(DateTime selected, DateTime focused) {
+    _selectedDay = selected;
+    _focusedDay = focused;
+    _updateSelectedDayEvents();
+    _safeNotifyListeners();
+  }
+
+  void _updateSelectedDayEvents() {
+    selectedDayEvents.value = meetings.where((meeting) {
+      return isSameDay(meeting.fecha, _selectedDay);
+    }).toList();
   }
 
   Future<void> initialize() async {

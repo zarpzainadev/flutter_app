@@ -5,9 +5,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_web_android/components/create_meeting_modal.dart';
 import 'package:flutter_web_android/components/table_flexible.dart';
 import 'package:flutter_web_android/components/update_meeting_modal.dart';
+import 'package:flutter_web_android/components/upload_acta_modal.dart';
+import 'package:flutter_web_android/screens/assistance/assistance_screen.dart';
+import 'package:flutter_web_android/screens/home_screen.dart';
 import 'package:flutter_web_android/services/api_service_admin.dart';
 import 'package:flutter_web_android/storage/storage_services.dart';
 import 'package:flutter_web_android/models/modulo_gestion_usuario_model.dart';
+import '../../../helpers/mobile_download_helper.dart'
+    if (dart.library.html) '../../../helpers/web_download_helper.dart';
 import 'package:intl/intl.dart';
 
 class ListMeetingViewModel extends ChangeNotifier {
@@ -78,7 +83,126 @@ class ListMeetingViewModel extends ChangeNotifier {
             }
           },
         ),
+        TableAction(
+          icon: Icons.description,
+          color: Colors.orange,
+          tooltip: 'Registrar Acta',
+          onPressed: (row) => onRegisterActa(context, row),
+        ),
+        TableAction(
+          icon: Icons.people,
+          color: Colors.blue,
+          tooltip: 'Gestionar Asistencia',
+          onPressed: (row) => onManageAssistance(context, row),
+          // Solo permitir gestionar asistencia si la reunión está publicada
+          getTooltip: (row) {
+            if (row['estado'] != 'Publicada') {
+              return 'Solo disponible para reuniones publicadas';
+            }
+            return 'Gestionar Asistencia';
+          },
+          getColor: (row) {
+            if (row['estado'] != 'Publicada') {
+              return Colors.grey;
+            }
+            return Colors.blue;
+          },
+        ),
       ];
+
+  void onManageAssistance(BuildContext context, Map<String, dynamic> row) {
+    if (row['estado'] != 'Publicada') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+              'Solo se puede gestionar asistencia de reuniones publicadas'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    // En lugar de Navigator.push, usar el método changeScreen del HomeScreen
+    if (context.findAncestorStateOfType<HomeScreenState>() != null) {
+      context.findAncestorStateOfType<HomeScreenState>()?.changeScreen(
+            AssistanceScreen(
+              title: 'Gestionar Asistencia',
+              reunionId: row['id'],
+            ),
+          );
+    }
+  }
+
+  // En list_meeting_viewmodel.dart
+  void onRegisterActa(BuildContext context, Map<String, dynamic> row) async {
+    // 1. Verificar estado de la reunión
+    if (row['estado'] != 'Publicada') {
+      debugPrint('Solo se pueden registrar actas para reuniones publicadas');
+      return;
+    }
+
+    // 2. Mostrar modal para seleccionar archivo
+    final result = await showUploadActaModal(context);
+
+    if (result != null) {
+      try {
+        isLoading = true;
+        _safeNotifyListeners();
+
+        // 3. Obtener datos necesarios
+        final meetingId = row['id'] as int;
+        final fileBytes = result['file'] as List<int>;
+        final fileName = result['fileName'] as String;
+
+        debugPrint('Registrando acta para reunión: $meetingId');
+
+        // 4. Usar el método existente que maneja todo el proceso
+        final success = await createAndUploadActa(
+          meetingId,
+          fileBytes,
+          fileName,
+        );
+
+        // 5. Mostrar resultado
+        if (success && context.mounted) {
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Éxito'),
+              content: const Text('Acta registrada exitosamente'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('OK'),
+                ),
+              ],
+            ),
+          );
+        }
+      } catch (e) {
+        errorMessage = 'Error al registrar acta: $e';
+        debugPrint(errorMessage);
+        if (context.mounted) {
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Error'),
+              content: Text('Error al registrar acta: $e'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('OK'),
+                ),
+              ],
+            ),
+          );
+        }
+      } finally {
+        isLoading = false;
+        _safeNotifyListeners();
+      }
+    }
+  }
 
   // Métodos temporales para las acciones
   void onUpdateMeeting(BuildContext context, Map<String, dynamic> row) async {
@@ -336,6 +460,31 @@ class ListMeetingViewModel extends ChangeNotifier {
       errorMessage = 'Error al subir contenido del acta: $e';
       debugPrint('Error en uploadActaContent: $e');
       return false;
+    } finally {
+      isLoading = false;
+      _safeNotifyListeners();
+    }
+  }
+
+  Future<void> generateMeetingsReport(String formato) async {
+    try {
+      isLoading = true;
+      _safeNotifyListeners();
+
+      final token = await _getToken();
+      final bytes = await _apiService.generateMeetingsReport(token, formato);
+
+      final extension = formato == 'excel' ? 'xlsx' : 'pdf';
+
+      // Manejar la descarga según la plataforma
+      if (kIsWeb) {
+        await handleMeetingWebDownload(bytes, extension);
+      } else {
+        await handleMeetingMobileDownload(bytes, extension);
+      }
+    } catch (e) {
+      errorMessage = 'Error al generar reporte: $e';
+      debugPrint('Error en generateMeetingsReport: $e');
     } finally {
       isLoading = false;
       _safeNotifyListeners();

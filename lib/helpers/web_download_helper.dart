@@ -31,3 +31,17 @@ Future<void> handleMobileDocumentDownload(
     List<int> bytes, String nombre, String formato) async {
   throw UnsupportedError('Mobile download not supported on web');
 }
+
+Future<void> handleMeetingWebDownload(List<int> bytes, String formato) async {
+  final blob = html.Blob([bytes]);
+  final url = html.Url.createObjectUrlFromBlob(blob);
+  final anchor = html.AnchorElement(href: url)
+    ..setAttribute('download', 'reporte_reuniones.$formato')
+    ..click();
+  html.Url.revokeObjectUrl(url);
+}
+
+Future<void> handleMeetingMobileDownload(
+    List<int> bytes, String formato) async {
+  throw UnsupportedError('Mobile download not supported on web');
+}

@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_web_android/models/modulo_user_meetings.dart';
+import 'package:flutter_web_android/screens/calendar/calendar_viewmodel.dart';
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:table_calendar/table_calendar.dart';
@@ -9,8 +9,14 @@ import 'package:table_calendar/table_calendar.dart';
 class CalendarWidget extends StatefulWidget {
   final List<MeetingModel> meetings;
   final Function(MeetingModel) onMeetingTap;
+  final CalendarViewModel viewModel;
 
-  CalendarWidget({required this.meetings, required this.onMeetingTap});
+  const CalendarWidget({
+    Key? key,
+    required this.meetings,
+    required this.onMeetingTap,
+    required this.viewModel,
+  }) : super(key: key);
 
   @override
   _CalendarWidgetState createState() => _CalendarWidgetState();
@@ -19,282 +25,270 @@ class CalendarWidget extends StatefulWidget {
 class _CalendarWidgetState extends State<CalendarWidget> {
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
-  OverlayEntry? _overlayEntry;
   CalendarFormat _calendarFormat = CalendarFormat.month;
+  final ScrollController _scrollController = ScrollController();
+  final ValueNotifier<List<MeetingModel>> _selectedEvents = ValueNotifier([]);
 
   @override
   void initState() {
     super.initState();
     initializeDateFormatting('es_ES', null);
+    _selectedDay = _focusedDay;
+    _selectedEvents.value = _getEventsForDay(_selectedDay!);
   }
 
   @override
   void dispose() {
-    _overlayEntry?.remove();
+    _scrollController.dispose();
+    _selectedEvents.dispose();
     super.dispose();
   }
 
   List<MeetingModel> _getEventsForDay(DateTime day) {
-    debugPrint('Buscando reuniones para el día: ${day.toString()}');
-    final events = widget.meetings.where((meeting) {
-      final esMismoDia = meeting.fecha.year == day.year &&
-          meeting.fecha.month == day.month &&
-          meeting.fecha.day == day.day;
-
-      if (esMismoDia) {
-        debugPrint(
-            'Encontrada reunión para el día ${day.toString()}: ID=${meeting.id}');
-      }
-      return esMismoDia;
+    return widget.meetings.where((meeting) {
+      return isSameDay(meeting.fecha, day);
     }).toList();
-
-    debugPrint('Total de reuniones encontradas para el día: ${events.length}');
-    return events;
-  }
-
-  void _showEventDetails(
-      BuildContext context, Offset position, MeetingModel meeting) {
-    _overlayEntry?.remove();
-
-    final size = MediaQuery.of(context).size;
-    final overlayWidth = 250.0;
-
-    // Ajustar posición para que no se salga de la pantalla
-    double left = position.dx - (overlayWidth / 2);
-    double top = position.dy + 20;
-
-    // Ajustes para mantener el overlay dentro de la pantalla
-    if (left < 0) left = 10;
-    if (left + overlayWidth > size.width) left = size.width - overlayWidth - 10;
-    if (top + 200 > size.height) top = position.dy - 220;
-
-    _overlayEntry = OverlayEntry(
-      builder: (context) => Stack(
-        children: [
-          // Background gesture detector
-          Positioned.fill(
-            child: GestureDetector(
-              onTap: () {
-                _overlayEntry?.remove();
-                _overlayEntry = null;
-                setState(() {
-                  _selectedDay = null;
-                });
-              },
-              child: Container(
-                color: Colors.transparent,
-              ),
-            ),
-          ),
-          // Overlay content
-          Positioned(
-            left: left,
-            top: top,
-            child: Material(
-              elevation: 8,
-              borderRadius: BorderRadius.circular(12),
-              child: GestureDetector(
-                onTap: () {}, // Prevent tap from reaching background
-                child: Container(
-                  width: overlayWidth,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                        color: const Color(0xFF1E3A8A).withOpacity(0.1)),
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        DateFormat('dd/MM/yyyy', 'es_ES').format(meeting.fecha),
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                          color: Color(0xFF1E3A8A),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          const Icon(Icons.location_on,
-                              size: 16, color: Color(0xFF1E3A8A)),
-                          const SizedBox(width: 8),
-                          Expanded(child: Text(meeting.lugar)),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          const Icon(Icons.description,
-                              size: 16, color: Color(0xFF1E3A8A)),
-                          const SizedBox(width: 8),
-                          Expanded(child: Text(meeting.agenda)),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-    Overlay.of(context).insert(_overlayEntry!);
   }
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final screenHeight = MediaQuery.of(context).size.height;
-    final calendarWidth = kIsWeb ? screenWidth * 0.9 : screenWidth * 0.95;
-    final calendarHeight = kIsWeb ? screenHeight * 0.8 : screenHeight * 0.7;
+    // Detectar si estamos en web
+    final isWeb = kIsWeb;
 
-    return Container(
-      color: const Color(0xFFF0F2F5),
-      padding: EdgeInsets.all(kIsWeb ? 32 : 8),
-      child: Center(
-        child: Container(
-          width: calendarWidth,
-          height: calendarHeight,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
+    // Widget de la lista de eventos
+    Widget eventsList = Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      margin: const EdgeInsets.all(8),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
           ),
-          padding: const EdgeInsets.all(12),
-          child: TableCalendar<MeetingModel>(
-            firstDay: DateTime.utc(2010, 10, 16),
-            lastDay: DateTime.utc(2030, 3, 14),
-            focusedDay: _focusedDay,
-            locale: 'es_ES',
-            startingDayOfWeek: StartingDayOfWeek.monday,
-            daysOfWeekHeight: 40,
-            rowHeight: 52,
-            headerStyle: const HeaderStyle(
-              formatButtonVisible: false,
-              titleCentered: true,
-              titleTextStyle: TextStyle(
-                fontSize: 24,
-                color: Color(0xFF1E3A8A),
-                fontWeight: FontWeight.bold,
-              ),
-              headerPadding: EdgeInsets.symmetric(vertical: 20),
-            ),
-            daysOfWeekStyle: const DaysOfWeekStyle(
-              weekdayStyle: TextStyle(
-                color: Color(0xFF1E3A8A),
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-              weekendStyle: TextStyle(
-                color: Color(0xFF1E3A8A),
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            calendarStyle: CalendarStyle(
-              outsideDaysVisible: false,
-              isTodayHighlighted: true,
-              defaultTextStyle: TextStyle(
-                fontSize: kIsWeb ? 24 : 16,
-                fontWeight: FontWeight.w500,
-              ),
-              weekendTextStyle: TextStyle(
-                color: const Color(0xFF1E3A8A),
-                fontSize: kIsWeb ? 24 : 16,
-                fontWeight: FontWeight.w500,
-              ),
-              holidayTextStyle: TextStyle(
-                color: const Color(0xFF1E3A8A),
-                fontSize: kIsWeb ? 24 : 16,
-              ),
-              todayDecoration: BoxDecoration(
-                color: const Color(0xFF1E3A8A).withOpacity(0.3),
-                shape: BoxShape.circle,
-              ),
-              markerDecoration: const BoxDecoration(
-                color: Color(0xFF1E3A8A),
-                shape: BoxShape.circle,
-              ),
-              selectedDecoration: const BoxDecoration(
-                color: Color(0xFF1E3A8A),
-                shape: BoxShape.circle,
-              ),
-              selectedTextStyle: TextStyle(
-                color: Colors.white,
-                fontSize: kIsWeb ? 20 : 16,
-              ),
-              cellPadding: EdgeInsets.all(12),
-              cellMargin: EdgeInsets.all(6),
-            ),
-            selectedDayPredicate: (day) {
-              final hasEvents = _getEventsForDay(day).isNotEmpty;
-              return _selectedDay != null &&
-                  isSameDay(_selectedDay!, day) &&
-                  hasEvents;
-            },
-            onDaySelected: (selectedDay, focusedDay) {
-              final events = _getEventsForDay(selectedDay);
-              if (events.isNotEmpty) {
-                setState(() {
-                  _focusedDay = focusedDay;
-                  _selectedDay = selectedDay;
-                });
+          Expanded(
+            child: ListView.builder(
+              controller: _scrollController,
+              itemCount: 365,
+              itemBuilder: (context, index) {
+                final date = DateTime.now().add(Duration(days: index));
+                final events = _getEventsForDay(date);
 
-                // Obtener la posición del día seleccionado
-                final RenderBox? box = context.findRenderObject() as RenderBox?;
-                if (box != null) {
-                  final position = box.localToGlobal(Offset.zero);
-                  _showEventDetails(
-                    context,
-                    position + Offset(box.size.width / 2, box.size.height / 2),
-                    events.first,
-                  );
+                if (events.isEmpty) {
+                  return const SizedBox.shrink();
                 }
-              } else {
-                setState(() {
-                  _selectedDay = null;
-                });
-                _overlayEntry?.remove();
-                _overlayEntry = null;
-              }
-            },
-            calendarBuilders: CalendarBuilders(
-              defaultBuilder: (context, day, focusedDay) {
-                final hasEvents = _getEventsForDay(day).isNotEmpty;
+
                 return Container(
-                  margin: const EdgeInsets.all(4),
-                  decoration: hasEvents
-                      ? BoxDecoration(
-                          border: Border.all(
-                            color: const Color(0xFF1E3A8A),
-                            width: 2,
+                  margin: EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Text(
+                          DateFormat('EEEE d MMMM, yyyy', 'es_ES').format(date),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
                           ),
-                          shape: BoxShape.circle,
-                        )
-                      : null,
-                  child: Center(
-                    child: Text(
-                      '${day.day}',
-                      style: const TextStyle(fontSize: 20),
-                    ),
+                        ),
+                      ),
+                      ...events.map((event) => Card(
+                            margin: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            child: Theme(
+                              data: Theme.of(context)
+                                  .copyWith(dividerColor: Colors.transparent),
+                              child: ExpansionTile(
+                                leading: Container(
+                                  width: 4,
+                                  height: 40,
+                                  color: Colors.blue.shade700,
+                                ),
+                                title: Text(
+                                  event.lugar,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: 15,
+                                  ),
+                                ),
+                                subtitle: Text(
+                                  DateFormat('HH:mm').format(event.fecha),
+                                  style: TextStyle(
+                                    color: Colors.blue.shade700,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(16),
+                                    width: double.infinity,
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey.shade50,
+                                      border: Border(
+                                        top: BorderSide(
+                                          color: Colors.grey.shade200,
+                                          width: 1,
+                                        ),
+                                      ),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Icon(Icons.calendar_today,
+                                                size: 16,
+                                                color: Colors.grey.shade700),
+                                            const SizedBox(width: 8),
+                                            Text(
+                                              DateFormat('dd/MM/yyyy HH:mm',
+                                                      'es_ES')
+                                                  .format(event.fecha),
+                                              style: TextStyle(
+                                                color: Colors.grey.shade700,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Row(
+                                          children: [
+                                            Icon(Icons.location_on,
+                                                size: 16,
+                                                color: Colors.grey.shade700),
+                                            const SizedBox(width: 8),
+                                            Text(
+                                              event.lugar,
+                                              style: TextStyle(
+                                                color: Colors.grey.shade700,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 12),
+                                        Text(
+                                          'Agenda:',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.grey.shade800,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          event.agenda,
+                                          style: TextStyle(
+                                            color: Colors.grey.shade700,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                                onExpansionChanged: (isExpanded) {
+                                  if (isExpanded) {
+                                    widget.onMeetingTap(event);
+                                  }
+                                },
+                              ),
+                            ),
+                          )),
+                    ],
                   ),
                 );
               },
             ),
           ),
-        ),
+        ],
       ),
     );
+
+    // Widget del calendario
+    Widget calendarWidget = Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+          ),
+        ],
+      ),
+      margin: const EdgeInsets.all(8),
+      child: TableCalendar<MeetingModel>(
+        firstDay: DateTime.utc(2010, 10, 16),
+        lastDay: DateTime.utc(2030, 3, 14),
+        focusedDay: _focusedDay,
+        selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+        calendarFormat: _calendarFormat,
+        locale: 'es_ES',
+        eventLoader: _getEventsForDay,
+        startingDayOfWeek: StartingDayOfWeek.monday,
+        calendarStyle: CalendarStyle(
+          outsideDaysVisible: false,
+          weekendTextStyle: const TextStyle(color: Colors.red),
+          holidayTextStyle: const TextStyle(color: Colors.red),
+          todayDecoration: BoxDecoration(
+            color: Colors.blue.shade100,
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.blue, width: 1.5),
+          ),
+          selectedDecoration: BoxDecoration(
+            color: Colors.blue.shade400,
+            shape: BoxShape.circle,
+          ),
+          markerDecoration: BoxDecoration(
+            color: Colors.blue.shade700,
+            shape: BoxShape.circle,
+          ),
+          markerSize: 6,
+          markersMaxCount: 4,
+          canMarkersOverflow: true,
+        ),
+        headerStyle: HeaderStyle(
+          titleTextStyle: TextStyle(
+            fontSize: 20,
+            color: Colors.grey[800],
+            fontWeight: FontWeight.w500,
+          ),
+          formatButtonVisible: false,
+          titleCentered: true,
+          headerPadding: const EdgeInsets.symmetric(vertical: 12),
+          leftChevronIcon: Icon(Icons.chevron_left, color: Colors.grey[600]),
+          rightChevronIcon: Icon(Icons.chevron_right, color: Colors.grey[600]),
+        ),
+        onDaySelected: (selectedDay, focusedDay) {
+          setState(() {
+            _selectedDay = selectedDay;
+            _focusedDay = focusedDay;
+            _selectedEvents.value = _getEventsForDay(selectedDay);
+          });
+        },
+      ),
+    );
+
+    // Retornar layout según la plataforma
+    if (isWeb) {
+      return Row(
+        children: [
+          Expanded(flex: 3, child: eventsList),
+          Expanded(flex: 7, child: calendarWidget),
+        ],
+      );
+    } else {
+      // En móvil, solo mostrar la lista de eventos
+      return eventsList;
+    }
   }
 }

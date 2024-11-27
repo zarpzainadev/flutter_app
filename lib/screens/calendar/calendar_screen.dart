@@ -47,6 +47,7 @@ class CalendarScreen extends StatelessWidget {
                       debugPrint('Reunión seleccionada: ID=${meeting.id}');
                       // Manejar el tap si es necesario
                     },
+                    viewModel: viewModel,
                   );
                 },
               ),

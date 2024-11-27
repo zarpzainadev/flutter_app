@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_web_android/components/loading_session_widget.dart';
 import 'package:flutter_web_android/components/logout_confirmation_dialog.dart';
 import 'package:flutter_web_android/components/meeting_modal_overlay.dart';
 import 'package:flutter_web_android/components/meeting_reminder_card.dart';
@@ -86,26 +87,25 @@ class HomeScreenState extends State<HomeScreen> {
       );
 
       if (shouldLogout ?? false) {
-        _showLoadingDialog();
+        // Mostrar el LoadingSessionWidget en lugar del CircularProgressIndicator
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => const LoadingSessionWidget(),
+        );
+
+        // Esperar un poco para mostrar la animación (opcional)
+        await Future.delayed(const Duration(seconds: 2));
+
+        // Realizar el logout
         await _viewModel.logout(context);
       }
     } catch (e) {
-      _dismissLoadingDialog();
+      // Si hay error, cerrar el LoadingSessionWidget
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
       _handleError(Exception(e.toString()));
-    }
-  }
-
-  void _showLoadingDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => const Center(child: CircularProgressIndicator()),
-    );
-  }
-
-  void _dismissLoadingDialog() {
-    if (Navigator.canPop(context)) {
-      Navigator.pop(context);
     }
   }
 
