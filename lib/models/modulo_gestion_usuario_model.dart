@@ -744,6 +744,40 @@ class MeetingResponse {
   bool get publicada => estado == 'Publicada';
 }
 
+class MeetingListResponse {
+  final int id;
+  final DateTime fecha;
+  final String lugar;
+  final String agenda;
+  final String estado;
+  final int creador_id;
+  final bool tiene_asistencia; // Nuevo campo
+
+  MeetingListResponse({
+    required this.id,
+    required this.fecha,
+    required this.lugar,
+    required this.agenda,
+    required this.estado,
+    required this.creador_id,
+    required this.tiene_asistencia,
+  });
+
+  factory MeetingListResponse.fromJson(Map<String, dynamic> json) {
+    return MeetingListResponse(
+      id: json['id'] as int,
+      fecha: DateTime.parse(json['fecha'] as String),
+      lugar: json['lugar'] as String,
+      agenda: json['agenda'] as String,
+      estado: json['estado'] as String,
+      creador_id: json['creador_id'] as int,
+      tiene_asistencia: json['tiene_asistencia'] as bool? ?? false,
+    );
+  }
+
+  bool get publicada => estado == 'Publicada';
+}
+
 //modelos de respuesta de ruta de crear acta
 class ActaResponse {
   final int id;
@@ -1008,4 +1042,36 @@ class AsistenciaResponse {
       usuario: UsuarioAsistenciaModel.fromJson(json['usuario']),
     );
   }
+}
+
+// modelo para actualización individual
+class AsistenciaUpdateItem {
+  final int usuarioId;
+  final EstadoAsistencia estado;
+
+  AsistenciaUpdateItem({
+    required this.usuarioId,
+    required this.estado,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'usuario_id': usuarioId,
+        'estado': estado.toString().split('.').last,
+      };
+}
+
+// modelo para actualización masiva
+class AsistenciaUpdateMasiva {
+  final int reunionId;
+  final List<AsistenciaUpdateItem> asistencias;
+
+  AsistenciaUpdateMasiva({
+    required this.reunionId,
+    required this.asistencias,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'reunion_id': reunionId,
+        'asistencias': asistencias.map((a) => a.toJson()).toList(),
+      };
 }

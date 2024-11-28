@@ -24,7 +24,7 @@ class ListMeetingViewModel extends ChangeNotifier {
   bool isLoading = false;
   bool isInitialLoading = false;
   String? errorMessage;
-  List<MeetingResponse> meetings = [];
+  List<MeetingListResponse> meetings = [];
   Timer? _refreshTimer;
   bool _disposed = false;
 
@@ -110,7 +110,8 @@ class ListMeetingViewModel extends ChangeNotifier {
         ),
       ];
 
-  void onManageAssistance(BuildContext context, Map<String, dynamic> row) {
+  void onManageAssistance(
+      BuildContext context, Map<String, dynamic> row) async {
     if (row['estado'] != 'Publicada') {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -122,12 +123,19 @@ class ListMeetingViewModel extends ChangeNotifier {
       return;
     }
 
+    // Verificar si tiene asistencia registrada
+    final bool tieneAsistencia = row['tiene_asistencia'] as bool;
+
     // En lugar de Navigator.push, usar el método changeScreen del HomeScreen
     if (context.findAncestorStateOfType<HomeScreenState>() != null) {
       context.findAncestorStateOfType<HomeScreenState>()?.changeScreen(
             AssistanceScreen(
-              title: 'Gestionar Asistencia',
+              title: tieneAsistencia
+                  ? 'Editar Asistencia'
+                  : 'Registrar Asistencia',
               reunionId: row['id'],
+              isEditing:
+                  tieneAsistencia, // Pasamos el estado para controlar el modo
             ),
           );
     }
@@ -492,7 +500,7 @@ class ListMeetingViewModel extends ChangeNotifier {
   }
 
   List<Map<String, dynamic>> transformMeetingData(
-      List<MeetingResponse> meetings) {
+      List<MeetingListResponse> meetings) {
     return meetings.map((meeting) {
       return {
         'id': meeting.id,
@@ -500,6 +508,7 @@ class ListMeetingViewModel extends ChangeNotifier {
         'fecha': _formatDate(meeting.fecha),
         'lugar': meeting.lugar,
         'estado': meeting.estado,
+        'tiene_asistencia': meeting.tiene_asistencia
       };
     }).toList();
   }

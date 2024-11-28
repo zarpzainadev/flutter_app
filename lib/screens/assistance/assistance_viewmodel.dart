@@ -8,11 +8,13 @@ class AssistanceViewModel extends ChangeNotifier {
   bool isLoading = false;
   String? errorMessage;
   bool _disposed = false;
+  bool isEditing = false;
 
   // Estados para manejar los datos
   List<UsuarioAsistenciaModel> usuariosActivos = [];
-  List<AsistenciaCreate> asistenciasPendientes = [];
+  List<AsistenciaUpdateItem> asistenciasPendientes = [];
   Map<int, EstadoAsistencia> estadosAsistencia = {};
+  Map<int, EstadoAsistencia> estadosOriginales = {};
   int? reunionId;
 
   AssistanceViewModel({ApiServiceAdmin? apiService})
@@ -21,6 +23,118 @@ class AssistanceViewModel extends ChangeNotifier {
   void _safeNotifyListeners() {
     if (!_disposed) {
       notifyListeners();
+    }
+  }
+
+  Future<void> initialize(int reunionId, bool isEditing) async {
+    try {
+      this.isEditing = isEditing;
+      isLoading = true;
+      errorMessage = null;
+      _safeNotifyListeners();
+
+      final token = await _getToken();
+
+      if (isEditing) {
+        // Obtener asistencias existentes
+        final asistencias =
+            await _apiService.obtenerAsistenciasReunion(token, reunionId);
+        await cargarUsuariosActivos();
+
+        // Guardar estados originales y actuales
+        for (var asistencia in asistencias) {
+          estadosAsistencia[asistencia.usuarioId] = asistencia.estado;
+          estadosOriginales[asistencia.usuarioId] = asistencia.estado;
+        }
+
+        // Estado default para usuarios sin asistencia
+        for (var usuario in usuariosActivos) {
+          if (!estadosAsistencia.containsKey(usuario.id)) {
+            estadosAsistencia[usuario.id] = EstadoAsistencia.No_asistido;
+            estadosOriginales[usuario.id] = EstadoAsistencia.No_asistido;
+          }
+        }
+      } else {
+        // Flujo normal para registro nuevo
+        await cargarUsuariosActivos();
+        for (var usuario in usuariosActivos) {
+          estadosAsistencia[usuario.id] = EstadoAsistencia.No_asistido;
+        }
+      }
+    } catch (e) {
+      errorMessage = 'Error al inicializar: $e';
+      debugPrint(errorMessage);
+    } finally {
+      isLoading = false;
+      _safeNotifyListeners();
+    }
+  }
+
+  // Preparar asistencias modificadas para actualización
+  void prepararActualizaciones() {
+    asistenciasPendientes.clear();
+
+    estadosAsistencia.forEach((usuarioId, estadoActual) {
+      final estadoOriginal = estadosOriginales[usuarioId];
+      if (estadoOriginal != null && estadoOriginal != estadoActual) {
+        // Solo incluir los que han cambiado
+        asistenciasPendientes.add(AsistenciaUpdateItem(
+          usuarioId: usuarioId,
+          estado: estadoActual,
+        ));
+      }
+    });
+  }
+
+  // Actualizar asistencias
+  Future<bool> actualizarAsistencias({
+    required int reunionId,
+  }) async {
+    try {
+      isLoading = true;
+      errorMessage = null;
+      _safeNotifyListeners();
+
+      if (asistenciasPendientes.isEmpty) {
+        return true; // No hay cambios que actualizar
+      }
+
+      final token = await _getToken();
+
+      final actualizacionMasiva = AsistenciaUpdateMasiva(
+        reunionId: reunionId,
+        asistencias: asistenciasPendientes,
+      );
+
+      await _apiService.actualizarAsistencias(token, actualizacionMasiva);
+
+      // Actualizar estados originales
+      for (var asistencia in asistenciasPendientes) {
+        estadosOriginales[asistencia.usuarioId] = asistencia.estado;
+      }
+
+      return true;
+    } catch (e) {
+      errorMessage = 'Error al actualizar asistencias: $e';
+      debugPrint(errorMessage);
+      return false;
+    } finally {
+      isLoading = false;
+      _safeNotifyListeners();
+    }
+  }
+
+  bool hayAsistenciasPendientes() {
+    if (isEditing) {
+      // Para modo edición, comparar con estados originales
+      return estadosAsistencia.entries.any((entry) {
+        final estadoOriginal = estadosOriginales[entry.key];
+        return estadoOriginal != null && estadoOriginal != entry.value;
+      });
+    } else {
+      // Para modo registro nuevo, verificar si hay estados diferentes al default
+      return estadosAsistencia.values
+          .any((estado) => estado != EstadoAsistencia.No_asistido);
     }
   }
 
@@ -56,7 +170,7 @@ class AssistanceViewModel extends ChangeNotifier {
   // Preparar asistencias para envío
   void prepararAsistencias() {
     asistenciasPendientes = estadosAsistencia.entries.map((entry) {
-      return AsistenciaCreate(
+      return AsistenciaUpdateItem(
         usuarioId: entry.key,
         estado: entry.value,
       );
@@ -75,20 +189,18 @@ class AssistanceViewModel extends ChangeNotifier {
 
       final token = await _getToken();
 
-      // Preparar el objeto de asistencia masiva
       final asistenciaMasiva = AsistenciaMasiva(
         reunionId: reunionId,
-        asistencias: asistenciasPendientes,
+        asistencias: asistenciasPendientes
+            .map((item) => AsistenciaCreate(
+                // Convertir a AsistenciaCreate
+                usuarioId: item.usuarioId,
+                estado: item.estado))
+            .toList(),
         fecha: fecha,
       );
 
-      // Enviar al servidor
       await _apiService.registrarAsistencias(token, asistenciaMasiva);
-
-      // Limpiar estados después de registro exitoso
-      asistenciasPendientes.clear();
-      estadosAsistencia.clear();
-
       return true;
     } catch (e) {
       errorMessage = 'Error al registrar asistencias: $e';
@@ -118,12 +230,6 @@ class AssistanceViewModel extends ChangeNotifier {
       isLoading = false;
       _safeNotifyListeners();
     }
-  }
-
-  // Verificar si hay cambios pendientes
-  bool hayAsistenciasPendientes() {
-    return estadosAsistencia.values
-        .any((estado) => estado != EstadoAsistencia.No_asistido);
   }
 
   // Reset de estados

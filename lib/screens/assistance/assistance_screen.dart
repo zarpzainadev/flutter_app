@@ -26,7 +26,8 @@ class AssistanceScreen extends StatelessWidget {
     final isMobile = !kIsWeb;
 
     return ChangeNotifierProvider(
-      create: (_) => AssistanceViewModel()..cargarUsuariosActivos(),
+      create: (_) =>
+          AssistanceViewModel()..initialize(reunionId ?? 0, isEditing),
       child: Scaffold(
         backgroundColor: Colors.white,
         // Usar AppBar solo en móvil con estilo modificado
@@ -90,6 +91,28 @@ class _AssistanceContent extends StatelessWidget {
 
                 if (viewModel.errorMessage != null) {
                   return _buildErrorMessage(viewModel.errorMessage!);
+                }
+                if (viewModel.usuariosActivos.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.people_outline,
+                          size: 64,
+                          color: Colors.grey[400],
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'No hay usuarios activos para registrar asistencia',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
                 }
 
                 return _buildAssistanceList(context, viewModel);
@@ -347,7 +370,6 @@ class _AssistanceContent extends StatelessWidget {
         children: [
           TextButton(
             onPressed: () {
-              // Encontrar el HomeScreenState y cambiar a ListMeetings
               if (context.findAncestorStateOfType<HomeScreenState>() != null) {
                 context
                     .findAncestorStateOfType<HomeScreenState>()
@@ -366,7 +388,7 @@ class _AssistanceContent extends StatelessWidget {
           ElevatedButton.icon(
             onPressed: () => _handleSave(context),
             icon: const Icon(Icons.save),
-            label: const Text('Guardar Asistencias'),
+            label: Text(isEditing ? 'Editar Asistencia' : 'Guardar Asistencia'),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF1E3A8A),
               foregroundColor: Colors.white,
@@ -429,18 +451,26 @@ class _AssistanceContent extends StatelessWidget {
       return;
     }
 
-    viewModel.prepararAsistencias();
-    final success = await viewModel.registrarAsistencias(
-      reunionId: reunionId ?? 0,
-      fecha: DateTime.now(),
-    );
+    bool success;
+    if (isEditing) {
+      viewModel.prepararActualizaciones();
+      success = await viewModel.actualizarAsistencias(
+        reunionId: reunionId ?? 0,
+      );
+    } else {
+      viewModel.prepararAsistencias();
+      success = await viewModel.registrarAsistencias(
+        reunionId: reunionId ?? 0,
+        fecha: DateTime.now(),
+      );
+    }
 
     if (success && context.mounted) {
-      // Mostrar modal de éxito
       showDialog(
         context: context,
-        barrierDismissible: false, // El usuario debe usar el botón para cerrar
-        builder: (BuildContext context) {
+        barrierDismissible: false,
+        builder: (BuildContext dialogContext) {
+          // Usar dialogContext en lugar de context
           return AlertDialog(
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
@@ -449,16 +479,27 @@ class _AssistanceContent extends StatelessWidget {
               children: [
                 Icon(Icons.check_circle, color: Colors.green, size: 30),
                 SizedBox(width: 8),
-                Text('¡Éxito!'),
+                Text(isEditing
+                    ? '¡Cambios Guardados!'
+                    : '¡Asistencias Registradas!'),
               ],
             ),
-            content: Text('Las asistencias fueron registradas correctamente.'),
+            content: Text(isEditing
+                ? 'Los cambios fueron guardados correctamente.'
+                : 'Las asistencias fueron registradas correctamente.'),
             actions: [
               TextButton(
                 onPressed: () {
-                  Navigator.of(context).pop(); // Cierra solo el modal
-                  // Recargar los usuarios activos para refrescar la vista
-                  viewModel.cargarUsuariosActivos();
+                  // 1. Cerrar el diálogo
+                  Navigator.of(dialogContext).pop();
+
+                  // 2. Buscar el HomeScreenState
+                  final homeState =
+                      context.findAncestorStateOfType<HomeScreenState>();
+                  if (homeState != null) {
+                    // 3. Cambiar a ListMeetings
+                    homeState.changeScreen(const ListMeetings());
+                  }
                 },
                 child: Text(
                   'Aceptar',

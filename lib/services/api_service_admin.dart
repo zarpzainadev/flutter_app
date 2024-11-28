@@ -461,7 +461,7 @@ class ApiServiceAdmin {
   }
 
   // Listar reuniones con paginación
-  Future<List<MeetingResponse>> listMeetings(
+  Future<List<MeetingListResponse>> listMeetings(
     String token, {
     int skip = 0,
     int limit = 100,
@@ -493,7 +493,7 @@ class ApiServiceAdmin {
         }
 
         final List<dynamic> data = response.data as List<dynamic>;
-        return data.map((json) => MeetingResponse.fromJson(json)).toList();
+        return data.map((json) => MeetingListResponse.fromJson(json)).toList();
       } else {
         throw Exception(
             'Error del servidor: ${response.statusCode} - ${response.data}');
@@ -1006,6 +1006,44 @@ class ApiServiceAdmin {
         response.data['detail'] ?? 'Error al obtener asistencias de la reunión',
       );
     } on DioException catch (e) {
+      throw Exception('Error de red: ${e.message}');
+    }
+  }
+
+  // ruta para obtener asistencias por reunion
+  Future<List<AsistenciaResponse>> actualizarAsistencias(
+    String token,
+    AsistenciaUpdateMasiva asistencias,
+  ) async {
+    try {
+      final response = await _dio.patch(
+        '/attendance/actualizar/',
+        options: Options(
+          headers: {'Authorization': 'Bearer $token'},
+          validateStatus: (status) => status! < 500,
+        ),
+        data: asistencias.toJson(),
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = response.data;
+        return data.map((json) => AsistenciaResponse.fromJson(json)).toList();
+      }
+
+      if (response.statusCode == 404) {
+        throw Exception(
+            'No se encontraron registros de asistencia para actualizar');
+      }
+
+      throw Exception(
+        response.data['detail'] ?? 'Error al actualizar asistencias',
+      );
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 400) {
+        throw Exception(
+          e.response?.data['detail'] ?? 'Error al actualizar asistencias',
+        );
+      }
       throw Exception('Error de red: ${e.message}');
     }
   }

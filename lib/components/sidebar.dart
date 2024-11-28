@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_web_android/components/change_password_modal.dart';
+import 'package:flutter_web_android/screens/Profile/profiel_screen.dart';
+import 'package:flutter_web_android/screens/Profile/profile_viewmodel.dart';
 import 'package:flutter_web_android/screens/Users/list_user_screen.dart';
 import 'package:flutter_web_android/screens/Users/list_user_viewmodel.dart';
 import 'package:flutter_web_android/screens/Users/user_register/user_register_screen.dart';
@@ -109,7 +112,63 @@ final Map<String, ScreenGroup> screenGroups = {
       SidebarItem(
         icon: Icons.person,
         label: 'Mi Perfil',
-        screen: const Center(child: Text('Mi Perfil')),
+        screen: const ProfileScreen(),
+      ),
+      SidebarItem(
+        icon: Icons.calendar_today,
+        label: 'Calendario de Reuniones',
+        screen: CalendarScreen(
+          meetings: [],
+          onMeetingTap: (meeting) {},
+        ),
+      ),
+      SidebarItem(
+        icon: Icons.assistant,
+        label: 'Asistencias',
+        screen: const Center(child: Text('Asistencias')),
+      ),
+      SidebarItem(
+        icon: Icons.work_history,
+        label: 'Trabajos',
+        screen: const Center(child: Text('Trabajos')),
+      ),
+      SidebarItem(
+        icon: Icons.payment,
+        label: 'Pagos',
+        screen: const Center(child: Text('Pagos')),
+      ),
+      SidebarItem(
+        icon: Icons.lock_reset,
+        label: 'Actualizar contraseña',
+        screen: ChangeNotifierProvider(
+          create: (_) => ProfileViewModel(),
+          child: Builder(
+            builder: (context) {
+              Future.microtask(() {
+                showChangePasswordModal(
+                  context,
+                  (String newPassword) async {
+                    try {
+                      final viewModel =
+                          Provider.of<ProfileViewModel>(context, listen: false);
+                      await viewModel.changePassword(newPassword, context);
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Error al actualizar contraseña: $e'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                    }
+                  },
+                );
+              });
+              return const SizedBox.shrink();
+            },
+          ),
+        ),
       ),
     ],
   ),
