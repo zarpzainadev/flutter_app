@@ -1075,3 +1075,127 @@ class AsistenciaUpdateMasiva {
         'asistencias': asistencias.map((a) => a.toJson()).toList(),
       };
 }
+
+class UsuarioConGrado {
+  final int id;
+  final String nombres;
+  final String apellidosPaterno;
+  final String apellidosMaterno;
+  final String grado;
+
+  UsuarioConGrado({
+    required this.id,
+    required this.nombres,
+    required this.apellidosPaterno,
+    required this.apellidosMaterno,
+    this.grado = "Sin grado",
+  });
+
+  factory UsuarioConGrado.fromJson(Map<String, dynamic> json) {
+    return UsuarioConGrado(
+      id: json['id'] as int,
+      nombres: json['nombres'] as String,
+      apellidosPaterno: json['apellidos_paterno'] as String,
+      apellidosMaterno: json['apellidos_materno'] as String,
+      grado: json['grado'] as String? ?? "Sin grado",
+    );
+  }
+}
+
+// Modelo de error específico
+class UsuariosGradoError implements Exception {
+  final String message;
+  final int? statusCode;
+
+  UsuariosGradoError(this.message, {this.statusCode});
+
+  @override
+  String toString() => message;
+}
+
+enum TipoGrado {
+  Aprendiz,
+  Companero, // Sin ñ en el enum (no podemos usar ñ en identificadores)
+  Maestro;
+
+  String get display {
+    switch (this) {
+      case TipoGrado.Aprendiz:
+        return 'Aprendiz';
+      case TipoGrado.Companero:
+        return 'Compañero'; // Con ñ para mostrar
+      case TipoGrado.Maestro:
+        return 'Maestro';
+    }
+  }
+
+  // Nuevo método para convertir a string para el backend
+  String toBackendString() {
+    switch (this) {
+      case TipoGrado.Aprendiz:
+        return 'Aprendiz';
+      case TipoGrado.Companero:
+        return 'Compañero'; // Con ñ para el backend
+      case TipoGrado.Maestro:
+        return 'Maestro';
+    }
+  }
+}
+
+class GradoCreate {
+  final int usuarioId;
+  final TipoGrado grado;
+  final String abrevGrado;
+
+  GradoCreate({
+    required this.usuarioId,
+    required this.grado,
+    required this.abrevGrado,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'usuario_id': usuarioId,
+        'grado': grado.toBackendString(), // Usar el nuevo método
+        'abrev_grado': abrevGrado,
+      };
+}
+
+class GradoError implements Exception {
+  final String message;
+  final int? statusCode;
+
+  GradoError(this.message, {this.statusCode});
+
+  @override
+  String toString() => message;
+}
+
+class GradoUpdate {
+  final TipoGrado grado;
+  final String abrevGrado;
+
+  GradoUpdate({
+    required this.grado,
+    required this.abrevGrado,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'grado': grado.toBackendString(), // Usar el nuevo método
+        'abrev_grado': abrevGrado,
+      };
+}
+
+// Agregamos también el enum para estado de grado
+enum EstadoGrado {
+  Activo,
+  Inactivo;
+
+  String get display {
+    switch (this) {
+      case EstadoGrado.Activo:
+        return 'Activo';
+      case EstadoGrado.Inactivo:
+        return 'Inactivo';
+    }
+  }
+}

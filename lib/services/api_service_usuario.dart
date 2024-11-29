@@ -150,4 +150,84 @@ class ApiServiceUsuario {
       );
     }
   }
+
+  Future<List<AsistenciaUser>> getUserAssistances(String token) async {
+    try {
+      final response = await _dio.get(
+        '/meetings/assistances',
+        options: Options(
+          headers: {'Authorization': 'Bearer $token'},
+          validateStatus: (status) => status! < 500,
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = response.data;
+        return data.map((json) => AsistenciaUser.fromJson(json)).toList();
+      }
+
+      if (response.statusCode == 404) {
+        throw AsistenciaUserError(
+          'No se encontraron asistencias para este usuario',
+          statusCode: 404,
+        );
+      }
+
+      throw AsistenciaUserError(
+        response.data['detail'] ?? 'Error al obtener asistencias del usuario',
+        statusCode: response.statusCode,
+      );
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 401) {
+        throw AsistenciaUserError(
+          'No autorizado - Token inválido o expirado',
+          statusCode: 401,
+        );
+      }
+      throw AsistenciaUserError(
+        'Error de red: ${e.message}',
+        statusCode: e.response?.statusCode,
+      );
+    }
+  }
+
+  Future<List<UserWork>> getUserWorks(String token) async {
+    try {
+      final response = await _dio.get(
+        '/meetings/works',
+        options: Options(
+          headers: {'Authorization': 'Bearer $token'},
+          validateStatus: (status) => status! < 500,
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = response.data;
+        return data.map((json) => UserWork.fromJson(json)).toList();
+      }
+
+      if (response.statusCode == 404) {
+        throw UserWorkError(
+          'No se encontraron trabajos para este usuario',
+          statusCode: 404,
+        );
+      }
+
+      throw UserWorkError(
+        response.data['detail'] ?? 'Error al obtener trabajos del usuario',
+        statusCode: response.statusCode,
+      );
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 401) {
+        throw UserWorkError(
+          'No autorizado - Token inválido o expirado',
+          statusCode: 401,
+        );
+      }
+      throw UserWorkError(
+        'Error de red: ${e.message}',
+        statusCode: e.response?.statusCode,
+      );
+    }
+  }
 }

@@ -7,6 +7,7 @@ import 'package:flutter_web_android/components/meeting_reminder_card.dart';
 import 'package:flutter_web_android/components/session_timeout_wrapper.dart';
 import 'package:flutter_web_android/components/user_activity_detector.dart';
 import 'package:flutter_web_android/models/modulo_user_meetings.dart';
+import 'package:flutter_web_android/screens/Profile/profile_viewmodel.dart';
 import 'package:flutter_web_android/screens/Users/user_details/user_detail_screen.dart';
 import 'package:flutter_web_android/screens/calendar/calendar_screen.dart';
 import 'package:flutter_web_android/screens/home_screen_view_model.dart';
@@ -241,8 +242,13 @@ class HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     Widget content = SessionTimeoutWrapper(
       onSessionTimeout: () => _viewModel.logout(context),
-      child: ChangeNotifierProvider.value(
-        value: _viewModel,
+      child: MultiProvider(
+        // Cambiar a MultiProvider
+        providers: [
+          ChangeNotifierProvider.value(value: _viewModel),
+          ChangeNotifierProvider(
+              create: (_) => ProfileViewModel()), // Agregar ProfileViewModel
+        ],
         child: _buildMainContent(),
       ),
     );

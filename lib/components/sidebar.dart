@@ -7,10 +7,13 @@ import 'package:flutter_web_android/screens/Users/list_user_screen.dart';
 import 'package:flutter_web_android/screens/Users/list_user_viewmodel.dart';
 import 'package:flutter_web_android/screens/Users/user_register/user_register_screen.dart';
 import 'package:flutter_web_android/screens/Users/user_register/user_register_viewmodel.dart';
+import 'package:flutter_web_android/screens/assistance_historical_user/assistance_historical_user_screen.dart';
 import 'package:flutter_web_android/screens/calendar/calendar_screen.dart';
 import 'package:flutter_web_android/screens/calendar/calendar_viewmodel.dart';
+import 'package:flutter_web_android/screens/grados/grados_screen.dart';
 import 'package:flutter_web_android/screens/meetings/list_meeting_viewmodel.dart';
 import 'package:flutter_web_android/screens/meetings/list_meetings.dart';
+import 'package:flutter_web_android/screens/works_user/works_screen.dart';
 import 'package:provider/provider.dart';
 
 class ScreenGroup {
@@ -75,9 +78,9 @@ final Map<String, ScreenGroup> screenGroups = {
         screen: const UserRegisterScreen(),
       ),
       SidebarItem(
-        icon: Icons.monitor,
-        label: 'Dashboard de Administración',
-        screen: const Center(child: Text('Dashboard de Administración')),
+        icon: Icons.grade_rounded,
+        label: 'Grados',
+        screen: const GradosScreen(),
       ),
     ],
   ),
@@ -100,8 +103,8 @@ final Map<String, ScreenGroup> screenGroups = {
       ),
       SidebarItem(
         icon: Icons.notifications,
-        label: 'Asistencias',
-        screen: const Center(child: Text('Asistencias')),
+        label: 'Trabajos',
+        screen: const Center(child: Text('Trabajos realizados por reunion')),
       ),
     ],
   ),
@@ -125,12 +128,12 @@ final Map<String, ScreenGroup> screenGroups = {
       SidebarItem(
         icon: Icons.assistant,
         label: 'Asistencias',
-        screen: const Center(child: Text('Asistencias')),
+        screen: const AssistanceHistoricalScreen(),
       ),
       SidebarItem(
         icon: Icons.work_history,
         label: 'Trabajos',
-        screen: const Center(child: Text('Trabajos')),
+        screen: const WorksScreen(),
       ),
       SidebarItem(
         icon: Icons.payment,
@@ -140,34 +143,11 @@ final Map<String, ScreenGroup> screenGroups = {
       SidebarItem(
         icon: Icons.lock_reset,
         label: 'Actualizar contraseña',
-        screen: ChangeNotifierProvider(
-          create: (_) => ProfileViewModel(),
-          child: Builder(
-            builder: (context) {
-              Future.microtask(() {
-                showChangePasswordModal(
-                  context,
-                  (String newPassword) async {
-                    try {
-                      final viewModel =
-                          Provider.of<ProfileViewModel>(context, listen: false);
-                      await viewModel.changePassword(newPassword, context);
-                    } catch (e) {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Error al actualizar contraseña: $e'),
-                            backgroundColor: Colors.red,
-                          ),
-                        );
-                      }
-                    }
-                  },
-                );
-              });
-              return const SizedBox.shrink();
-            },
-          ),
+        screen: Builder(
+          builder: (context) {
+            // Aquí solo retornamos un widget vacío ya que no queremos cambiar la pantalla
+            return const SizedBox.shrink();
+          },
         ),
       ),
     ],

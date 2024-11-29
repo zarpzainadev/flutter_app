@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart' show Uint8List, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_web_android/components/cambio_estado_usuario_modal.dart';
 import 'package:flutter_web_android/components/table_flexible.dart';
+import 'package:flutter_web_android/screens/Users/user_edit/user_edit_screen.dart';
 import 'package:flutter_web_android/screens/home_screen.dart';
 import 'package:flutter_web_android/services/api_service_admin.dart';
 import 'package:flutter_web_android/storage/storage_services.dart';
@@ -54,7 +55,7 @@ class ListUserViewModel extends ChangeNotifier {
           icon: Icons.edit,
           color: const Color(0xFF1E40AF),
           tooltip: 'Editar',
-          onPressed: (row) => onEdit(row),
+          onPressed: (row) => onEdit(context, row), // Pasar context aquí
         ),
         TableAction(
           icon: Icons.loop,
@@ -190,6 +191,16 @@ class ListUserViewModel extends ChangeNotifier {
     );
   }
 
+  void onEdit(BuildContext context, Map<String, dynamic> row) {
+    final userId = row['id'];
+    // Usar HomeScreenState para cambiar la pantalla
+    context.findAncestorStateOfType<HomeScreenState>()?.changeScreen(
+          UserEditScreen(
+            userId: userId,
+          ),
+        );
+  }
+
   String _formatDate(DateTime date) {
     return DateFormat('yyyy-MM-dd').format(date);
   }
@@ -199,10 +210,6 @@ class ListUserViewModel extends ChangeNotifier {
     context
         .findAncestorStateOfType<HomeScreenState>()
         ?.navigateToUserDetail(userId);
-  }
-
-  void onEdit(Map<String, dynamic> row) {
-    debugPrint('Edit: ${row['id']}');
   }
 
   @override

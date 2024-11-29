@@ -1047,4 +1047,128 @@ class ApiServiceAdmin {
       throw Exception('Error de red: ${e.message}');
     }
   }
+
+  Future<List<UsuarioConGrado>> getUsuariosConGrado(String token) async {
+    try {
+      final response = await _dio.get(
+        '/complementary/usuarios-grados/',
+        options: Options(
+          headers: {'Authorization': 'Bearer $token'},
+          validateStatus: (status) => status! < 500,
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = response.data;
+        return data.map((json) => UsuarioConGrado.fromJson(json)).toList();
+      }
+
+      if (response.statusCode == 404) {
+        throw UsuariosGradoError(
+          'No se encontraron usuarios con grados',
+          statusCode: 404,
+        );
+      }
+
+      throw UsuariosGradoError(
+        response.data['detail'] ?? 'Error al obtener usuarios con grados',
+        statusCode: response.statusCode,
+      );
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 401) {
+        throw UsuariosGradoError(
+          'No autorizado - Token inválido o expirado',
+          statusCode: 401,
+        );
+      }
+      throw UsuariosGradoError(
+        'Error de red: ${e.message}',
+        statusCode: e.response?.statusCode,
+      );
+    }
+  }
+
+  Future<void> createGrado(String token, GradoCreate grado) async {
+    try {
+      final response = await _dio.post(
+        '/complementary/create_grade/',
+        options: Options(
+          headers: {'Authorization': 'Bearer $token'},
+          validateStatus: (status) => status! < 500,
+        ),
+        data: grado.toJson(),
+      );
+
+      if (response.statusCode == 201) {
+        return;
+      }
+
+      if (response.statusCode == 400) {
+        throw GradoError(
+          response.data['detail'] ?? 'Error al crear el grado',
+          statusCode: 400,
+        );
+      }
+
+      throw GradoError(
+        'Error al crear el grado',
+        statusCode: response.statusCode,
+      );
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 401) {
+        throw GradoError(
+          'No autorizado - Token inválido o expirado',
+          statusCode: 401,
+        );
+      }
+      throw GradoError(
+        'Error de red: ${e.message}',
+        statusCode: e.response?.statusCode,
+      );
+    }
+  }
+
+  Future<GradoOut> updateGrado(
+    String token,
+    int usuarioId,
+    GradoUpdate update,
+  ) async {
+    try {
+      final response = await _dio.put(
+        '/complementary/update_grade/$usuarioId',
+        options: Options(
+          headers: {'Authorization': 'Bearer $token'},
+          validateStatus: (status) => status! < 500,
+        ),
+        data: update.toJson(),
+      );
+
+      if (response.statusCode == 200) {
+        return GradoOut.fromJson(response.data);
+      }
+
+      if (response.statusCode == 404) {
+        throw GradoError(
+          'Grado no encontrado',
+          statusCode: 404,
+        );
+      }
+
+      throw GradoError(
+        response.data['detail'] ?? 'Error al actualizar el grado',
+        statusCode: response.statusCode,
+      );
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 401) {
+        throw GradoError(
+          'No autorizado - Token inválido o expirado',
+          statusCode: 401,
+        );
+      }
+      throw GradoError(
+        'Error de red: ${e.message}',
+        statusCode: e.response?.statusCode,
+      );
+    }
+  }
 }
