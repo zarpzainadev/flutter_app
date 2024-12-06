@@ -1,25 +1,29 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter_web_android/models/modulo_user_meetings.dart';
-import 'package:flutter_web_android/services/api_service_usuario.dart';
+import 'package:flutter_web_android/models/modulo_gestion_usuario_model.dart';
+import 'package:flutter_web_android/services/api_service_admin.dart';
 import 'package:flutter_web_android/storage/storage_services.dart';
+import '../../../helpers/mobile_download_helper.dart'
+    if (dart.library.html) '../../../helpers/web_download_helper.dart';
 
 class CalendarViewModel extends ChangeNotifier {
-  final ApiServiceUsuario _apiService = ApiServiceUsuario();
-  List<MeetingModel> meetings = [];
+  final ApiServiceAdmin _apiService = ApiServiceAdmin();
+  List<MeetingListResponse> meetings = [];
   bool _disposed = false;
   bool isLoading = false;
   String? errorMessage;
 
-  DateTime? selectedDate; // Agregar para manejar la selección
+  DateTime? selectedDate;
 
-  final ValueNotifier<List<MeetingModel>> selectedDayEvents = ValueNotifier([]);
+  final ValueNotifier<List<MeetingListResponse>> selectedDayEvents =
+      ValueNotifier([]);
   DateTime _selectedDay = DateTime.now();
   DateTime _focusedDay = DateTime.now();
 
   // Getters
   DateTime get selectedDay => _selectedDay;
   DateTime get focusedDay => _focusedDay;
+  List<MeetingListResponse> get getMeetings => meetings;
 
   void _safeNotifyListeners() {
     if (!_disposed) {
@@ -58,8 +62,8 @@ class CalendarViewModel extends ChangeNotifier {
       }
 
       try {
-        meetings = await _apiService.getAllMeetings(token.accessToken);
-        // Agregar logs de depuración
+        meetings = await _apiService.listMeetings(token.accessToken);
+
         debugPrint('Número total de reuniones cargadas: ${meetings.length}');
         for (var meeting in meetings) {
           debugPrint(
@@ -93,22 +97,52 @@ class CalendarViewModel extends ChangeNotifier {
     _safeNotifyListeners();
   }
 
-  List<MeetingModel> get getMeetings => meetings;
-
-  MeetingModel? getMeetingForDate(DateTime date) {
+  MeetingListResponse? getMeetingForDate(DateTime date) {
     return meetings.firstWhere(
       (meeting) => isSameDay(meeting.fecha, date),
-      orElse: () => MeetingModel(
+      orElse: () => MeetingListResponse(
         id: -1,
         fecha: date,
         lugar: '',
         agenda: '',
         estado: '',
+        creador_id: -1,
+        tiene_asistencia: false,
       ),
     );
   }
 
   bool isSameDay(DateTime a, DateTime b) {
     return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
+  Future<void> generateAttendanceReport(String formato,
+      {int? reunionId}) async {
+    try {
+      isLoading = true;
+      _safeNotifyListeners();
+
+      final token = await StorageService.getToken();
+      if (token == null) throw Exception('Token no disponible');
+
+      final bytes = await _apiService.generateAttendanceReport(
+          token.accessToken,
+          formato: formato,
+          reunionId: reunionId);
+
+      if (kIsWeb) {
+        await handleWebDownload(
+            bytes, 'asistencias', formato == 'excel' ? 'xlsx' : 'pdf');
+      } else {
+        await handleMobileDownload(
+            bytes, 'asistencias', formato == 'excel' ? 'xlsx' : 'pdf');
+      }
+    } catch (e) {
+      errorMessage = 'Error al generar reporte: $e';
+      debugPrint('Error en generateAttendanceReport: $e');
+    } finally {
+      isLoading = false;
+      _safeNotifyListeners();
+    }
   }
 }

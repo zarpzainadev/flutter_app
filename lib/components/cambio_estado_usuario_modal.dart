@@ -1,4 +1,4 @@
-// change_estado_modal.dart
+// cambio_estado_usuario_modal.dart
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 
@@ -64,14 +64,24 @@ class _ChangeEstadoModalState extends State<ChangeEstadoModal> {
                 border: OutlineInputBorder(),
               ),
               items: estados.entries
-                  .where(
-                      (e) => e.key != estadoActualId) // Filtrar estado actual
+                  .where((e) => e.key != estadoActualId)
                   .map((e) => DropdownMenuItem(
                         value: e.key,
                         child: Text(e.value),
                       ))
                   .toList(),
               onChanged: (value) => setState(() => selectedEstadoId = value),
+            ),
+            const SizedBox(height: 16),
+            // Campo de comentario
+            TextField(
+              decoration: const InputDecoration(
+                labelText: 'Comentario',
+                border: OutlineInputBorder(),
+                hintText: 'Ingrese un comentario sobre el cambio de estado',
+              ),
+              maxLines: 3,
+              onChanged: (value) => setState(() => comentario = value),
             ),
             const SizedBox(height: 16),
             Row(
@@ -103,14 +113,18 @@ class _ChangeEstadoModalState extends State<ChangeEstadoModal> {
                 ElevatedButton(
                   onPressed: _canSubmit()
                       ? () {
+                          // Solo ejecutar la acción, no cerrar el modal aquí
                           widget.onSubmit(
                             selectedEstadoId!,
                             comentario ?? '',
                             fileBytes!,
                           );
-                          Navigator.pop(context);
                         }
                       : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1E3A8A),
+                    foregroundColor: Colors.white,
+                  ),
                   child: const Text('Confirmar'),
                 ),
               ],
@@ -137,6 +151,7 @@ class _ChangeEstadoModalState extends State<ChangeEstadoModal> {
 
   bool _canSubmit() =>
       selectedEstadoId != null &&
-      comentario?.isNotEmpty == true &&
+      comentario != null &&
+      comentario!.isNotEmpty &&
       fileBytes != null;
 }

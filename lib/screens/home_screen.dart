@@ -6,7 +6,7 @@ import 'package:flutter_web_android/components/meeting_modal_overlay.dart';
 import 'package:flutter_web_android/components/meeting_reminder_card.dart';
 import 'package:flutter_web_android/components/session_timeout_wrapper.dart';
 import 'package:flutter_web_android/components/user_activity_detector.dart';
-import 'package:flutter_web_android/models/modulo_user_meetings.dart';
+import 'package:flutter_web_android/models/modulo_gestion_usuario_model.dart';
 import 'package:flutter_web_android/screens/Profile/profile_viewmodel.dart';
 import 'package:flutter_web_android/screens/Users/user_details/user_detail_screen.dart';
 import 'package:flutter_web_android/screens/calendar/calendar_screen.dart';
@@ -27,7 +27,7 @@ class HomeScreenState extends State<HomeScreen> {
   bool showMeetingModal = true;
   Widget _currentScreen = CalendarScreen(
     meetings: const [],
-    onMeetingTap: (MeetingModel meeting) {
+    onMeetingTap: (MeetingListResponse meeting) {
       debugPrint('Reunión seleccionada: ${meeting.lugar}');
     },
   );

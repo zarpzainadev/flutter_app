@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_web_android/components/loading_session_widget.dart';
 import 'package:flutter_web_android/models/modulo_profile_usuario.dart';
+import 'package:flutter_web_android/screens/home_screen.dart';
 import 'package:flutter_web_android/screens/home_screen_view_model.dart';
 import 'package:flutter_web_android/services/api_service_usuario.dart';
 import 'package:flutter_web_android/storage/storage_services.dart';
@@ -82,36 +83,6 @@ class ProfileViewModel extends ChangeNotifier {
 
       final token = await _getToken();
       await _apiService.changePassword(token, newPassword);
-
-      // Mostrar mensaje de éxito
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Contraseña actualizada correctamente'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-
-      // Esperar un momento antes de hacer logout
-      await Future.delayed(const Duration(seconds: 2));
-
-      // Mostrar el LoadingSessionWidget
-      if (context.mounted) {
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (_) => const LoadingSessionWidget(),
-        );
-
-        // Esperar un momento para mostrar la animación
-        await Future.delayed(const Duration(seconds: 2));
-
-        // Hacer logout
-        final homeViewModel =
-            Provider.of<HomeScreenViewModel>(context, listen: false);
-        await homeViewModel.logout(context);
-      }
     } catch (e) {
       errorMessage = 'Error al cambiar contraseña: $e';
       debugPrint(errorMessage);

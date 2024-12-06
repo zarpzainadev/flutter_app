@@ -130,11 +130,12 @@ class ListUserViewModel extends ChangeNotifier {
       );
 
       final bytes = await _apiService.generateUserReport(token, reportRequest);
+      final extension = formato == 'excel' ? 'xlsx' : formato;
 
       if (kIsWeb) {
-        await handleWebDownload(bytes, estadoNombre, formato);
+        await handleWebDownload(bytes, estadoNombre, extension);
       } else {
-        await handleMobileDownload(bytes, estadoNombre, formato);
+        await handleMobileDownload(bytes, estadoNombre, extension);
       }
     } catch (e) {
       errorMessage = 'Error al generar reporte: $e';
@@ -228,59 +229,52 @@ class ListUserViewModel extends ChangeNotifier {
 
   // list_user_viewmodel.dart
   void showChangeEstadoModal(BuildContext context, Map<String, dynamic> row) {
-    if (_disposed) return; // Prevenir llamadas si está disposed
+    if (_disposed) return;
 
     showDialog(
       context: context,
-      barrierDismissible: false, // Prevenir cierre accidental
+      barrierDismissible: false,
       builder: (dialogContext) => ChangeEstadoModal(
         estadoActual: row['estado_usuario_nombre'],
         onSubmit: (estadoId, comentario, fileBytes) async {
           try {
-            // Mostrar loading
-            showDialog(
-              context: dialogContext,
-              barrierDismissible: false,
-              builder: (_) => const Center(child: CircularProgressIndicator()),
-            );
-
             final cambio = CambioEstadoCreate(
               usuario_id: row['id'],
               estado_nuevo_id: estadoId,
               comentario: comentario,
             );
 
-            final success = await cambiarEstadoUsuario(
-              cambio,
-              [Uint8List.fromList(fileBytes)],
-            );
-
-            // Cerrar loading
+            // 1. Cerrar modal principal
             Navigator.pop(dialogContext);
 
-            if (success) {
-              // Cerrar modal
-              Navigator.pop(dialogContext);
+            // 2. Procesar cambio de estado
+            final success = await cambiarEstadoUsuario(
+                cambio, [Uint8List.fromList(fileBytes)]);
 
+            // 3. Si fue exitoso, mostrar mensaje y actualizar lista
+            if (success && context.mounted) {
               // Actualizar lista
-              if (!_disposed) {
-                listUsers(forceRefresh: true);
-              }
+              await listUsers(forceRefresh: true);
 
-              // Mostrar éxito
+              // Mostrar mensaje de éxito
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                    content: Text('Estado actualizado correctamente')),
+                  content: Text('Estado actualizado correctamente'),
+                  backgroundColor: Colors.green,
+                  duration: Duration(seconds: 2),
+                ),
               );
             }
           } catch (e) {
-            // Cerrar loading si hay error
-            Navigator.pop(dialogContext);
-
-            // Mostrar error
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Error: $e')),
-            );
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Error: $e'),
+                  backgroundColor: Colors.red,
+                  duration: Duration(seconds: 3),
+                ),
+              );
+            }
           }
         },
       ),

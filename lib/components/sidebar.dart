@@ -1,20 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter_web_android/components/change_password_modal.dart';
+import 'package:flutter_web_android/models/modulo_gestion_usuario_model.dart';
 import 'package:flutter_web_android/screens/Profile/profiel_screen.dart';
-import 'package:flutter_web_android/screens/Profile/profile_viewmodel.dart';
 import 'package:flutter_web_android/screens/Users/list_user_screen.dart';
-import 'package:flutter_web_android/screens/Users/list_user_viewmodel.dart';
 import 'package:flutter_web_android/screens/Users/user_register/user_register_screen.dart';
-import 'package:flutter_web_android/screens/Users/user_register/user_register_viewmodel.dart';
 import 'package:flutter_web_android/screens/assistance_historical_user/assistance_historical_user_screen.dart';
 import 'package:flutter_web_android/screens/calendar/calendar_screen.dart';
-import 'package:flutter_web_android/screens/calendar/calendar_viewmodel.dart';
 import 'package:flutter_web_android/screens/grados/grados_screen.dart';
-import 'package:flutter_web_android/screens/meetings/list_meeting_viewmodel.dart';
 import 'package:flutter_web_android/screens/meetings/list_meetings.dart';
+import 'package:flutter_web_android/screens/works/work_list_screen.dart';
 import 'package:flutter_web_android/screens/works_user/works_screen.dart';
-import 'package:provider/provider.dart';
 
 class ScreenGroup {
   final String identifier;
@@ -97,14 +92,16 @@ final Map<String, ScreenGroup> screenGroups = {
         icon: Icons.calendar_today,
         label: 'Calendario de Reuniones',
         screen: CalendarScreen(
-          meetings: [],
-          onMeetingTap: (meeting) {},
+          meetings: const [], // Esto realmente no se usa
+          onMeetingTap: (MeetingListResponse meeting) {
+            debugPrint('Reunión seleccionada: ${meeting.id}');
+          },
         ),
       ),
       SidebarItem(
         icon: Icons.notifications,
         label: 'Trabajos',
-        screen: const Center(child: Text('Trabajos realizados por reunion')),
+        screen: const WorkListScreen(),
       ),
     ],
   ),
@@ -139,16 +136,6 @@ final Map<String, ScreenGroup> screenGroups = {
         icon: Icons.payment,
         label: 'Pagos',
         screen: const Center(child: Text('Pagos')),
-      ),
-      SidebarItem(
-        icon: Icons.lock_reset,
-        label: 'Actualizar contraseña',
-        screen: Builder(
-          builder: (context) {
-            // Aquí solo retornamos un widget vacío ya que no queremos cambiar la pantalla
-            return const SizedBox.shrink();
-          },
-        ),
       ),
     ],
   ),

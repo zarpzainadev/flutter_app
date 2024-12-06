@@ -778,6 +778,53 @@ class MeetingListResponse {
   bool get publicada => estado == 'Publicada';
 }
 
+// Lista de trabajos con datos del usuario
+class TrabajoListResponse {
+  final int id;
+  final int usuarioId;
+  final int reunionId;
+  final String titulo;
+  final String descripcion;
+  final DateTime fechaPresentacion;
+  final String estado;
+  final String nombreUsuario;
+
+  TrabajoListResponse({
+    required this.id,
+    required this.usuarioId,
+    required this.reunionId,
+    required this.titulo,
+    required this.descripcion,
+    required this.fechaPresentacion,
+    required this.estado,
+    required this.nombreUsuario,
+  });
+
+  factory TrabajoListResponse.fromJson(Map<String, dynamic> json) {
+    return TrabajoListResponse(
+      id: json['id'] as int,
+      usuarioId: json['usuario_id'] as int,
+      reunionId: json['reunion_id'] as int,
+      titulo: json['titulo'] as String,
+      descripcion: json['descripcion'] as String,
+      fechaPresentacion: DateTime.parse(json['fecha_presentacion']),
+      estado: json['estado'] as String,
+      nombreUsuario: json['nombre_usuario'] as String,
+    );
+  }
+}
+
+// Error específico para listado de trabajos
+class TrabajoListError implements Exception {
+  final String message;
+  final int? statusCode;
+
+  TrabajoListError(this.message, {this.statusCode});
+
+  @override
+  String toString() => message;
+}
+
 //modelos de respuesta de ruta de crear acta
 class ActaResponse {
   final int id;

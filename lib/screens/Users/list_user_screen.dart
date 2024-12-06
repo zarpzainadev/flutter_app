@@ -15,90 +15,92 @@ class ListUserScreen extends StatelessWidget {
       create: (_) => ListUserViewModel()..initialize(),
       child: Consumer<ListUserViewModel>(
         builder: (context, viewModel, child) {
-          return Stack(
-            children: [
-              Container(
-                color: Colors.white,
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  children: [
-                    if (viewModel.errorMessage != null)
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(8),
-                        margin: const EdgeInsets.only(bottom: 16),
-                        decoration: BoxDecoration(
-                          color: Colors.red.shade50,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.red.shade200),
-                        ),
-                        child: Text(
-                          viewModel.errorMessage!,
-                          style: TextStyle(color: Colors.red.shade700),
-                        ),
-                      ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        ElevatedButton.icon(
-                          onPressed: () {
-                            showReportUsuarioModal(
-                              context,
-                              (estado, formato) => viewModel.generateReport(
-                                estadoNombre: estado,
-                                formato: formato,
-                                title: "Reporte de Usuarios $estado",
-                              ),
-                            );
-                          },
-                          icon: const Icon(Icons.description),
-                          label: const Text('Generar Reporte'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF1E3A8A),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 12,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        ElevatedButton.icon(
-                          onPressed: () =>
-                              viewModel.listUsers(forceRefresh: true),
-                          icon: const Icon(Icons.refresh),
-                          label: const Text('Actualizar'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF1E3A8A),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 12,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    Expanded(
-                      child: CustomDataTable(
-                        columns: viewModel.columns,
-                        data: viewModel.transformUserData(viewModel.users),
-                        actions: viewModel.getActions(context),
-                        title: 'Usuarios',
-                        primaryColor: const Color(0xFF1E3A8A),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (viewModel.isLoading)
+          return Material(
+            // Agregamos Material para asegurar el contexto
+            child: Stack(
+              children: [
                 Container(
-                  color: Colors.white
-                      .withOpacity(0.8), // Fondo más claro y profesional
-                  child: const CustomLoading(), // Nuestro nuevo loader
+                  color: Colors.white,
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    children: [
+                      if (viewModel.errorMessage != null)
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(8),
+                          margin: const EdgeInsets.only(bottom: 16),
+                          decoration: BoxDecoration(
+                            color: Colors.red.shade50,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.red.shade200),
+                          ),
+                          child: Text(
+                            viewModel.errorMessage!,
+                            style: TextStyle(color: Colors.red.shade700),
+                          ),
+                        ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          ElevatedButton.icon(
+                            onPressed: () {
+                              showReportUsuarioModal(
+                                context,
+                                (estado, formato) => viewModel.generateReport(
+                                  estadoNombre: estado,
+                                  formato: formato,
+                                  title: "Reporte de Usuarios $estado",
+                                ),
+                              );
+                            },
+                            icon: const Icon(Icons.description),
+                            label: const Text('Generar Reporte'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF1E3A8A),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          ElevatedButton.icon(
+                            onPressed: () =>
+                                viewModel.listUsers(forceRefresh: true),
+                            icon: const Icon(Icons.refresh),
+                            label: const Text('Actualizar'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF1E3A8A),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Expanded(
+                        child: CustomDataTable(
+                          columns: viewModel.columns,
+                          data: viewModel.transformUserData(viewModel.users),
+                          actions: viewModel.getActions(context),
+                          title: 'Usuarios',
+                          primaryColor: const Color(0xFF1E3A8A),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-            ],
+                if (viewModel.isLoading)
+                  Container(
+                    color: Colors.white.withOpacity(0.8),
+                    child: const CustomLoading(),
+                  ),
+              ],
+            ),
           );
         },
       ),

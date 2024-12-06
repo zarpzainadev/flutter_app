@@ -805,6 +805,39 @@ class ApiServiceAdmin {
     }
   }
 
+  // Listar todos los trabajos
+  Future<List<TrabajoListResponse>> listTrabajos(
+    String token, {
+    int skip = 0,
+    int limit = 100,
+  }) async {
+    try {
+      final response = await _dio.get(
+        '/meeting/trabajos/',
+        queryParameters: {
+          'skip': skip,
+          'limit': limit,
+        },
+        options: Options(
+          headers: {'Authorization': 'Bearer $token'},
+          validateStatus: (status) => status! < 500,
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = response.data;
+        return data.map((json) => TrabajoListResponse.fromJson(json)).toList();
+      }
+
+      throw TrabajoListError(
+        response.data['detail'] ?? 'Error al listar trabajos',
+        statusCode: response.statusCode,
+      );
+    } on DioException catch (e) {
+      throw TrabajoListError('Error de red: ${e.message}');
+    }
+  }
+
   // 1. Reporte de reuniones
   Future<List<int>> generateMeetingsReport(String token, String formato) async {
     try {
@@ -885,12 +918,13 @@ class ApiServiceAdmin {
 
 // 4. Reporte de asistencia
   Future<List<int>> generateAttendanceReport(
-    String token,
-    int userId,
-    String startDate,
-    String endDate,
-    String formato,
-  ) async {
+    String token, {
+    int? userId,
+    String? startDate,
+    String? endDate,
+    int? reunionId,
+    String formato = 'excel',
+  }) async {
     try {
       final response = await _dio.get(
         '/meeting/reportes/asistencia',
@@ -900,9 +934,10 @@ class ApiServiceAdmin {
           validateStatus: (status) => status! < 500,
         ),
         queryParameters: {
-          'user_id': userId,
-          'start_date': startDate,
-          'end_date': endDate,
+          if (userId != null) 'user_id': userId,
+          if (startDate != null) 'start_date': startDate,
+          if (endDate != null) 'end_date': endDate,
+          if (reunionId != null) 'reunion_id': reunionId,
           'formato': formato,
         },
       );

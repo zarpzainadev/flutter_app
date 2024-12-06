@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_web_android/components/calendar_widget.dart';
 import 'package:flutter_web_android/components/custom_loading.dart';
-import 'package:flutter_web_android/models/modulo_user_meetings.dart';
+import 'package:flutter_web_android/models/modulo_gestion_usuario_model.dart';
 import 'package:flutter_web_android/screens/calendar/calendar_viewmodel.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 class CalendarScreen extends StatelessWidget {
-  final List<MeetingModel> meetings;
-  final Function(MeetingModel) onMeetingTap;
+  final List<MeetingListResponse> meetings;
+  final Function(MeetingListResponse) onMeetingTap;
   const CalendarScreen({
     Key? key,
     required this.meetings,
