@@ -1,7 +1,9 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_web_android/components/custom_loading.dart';
 import 'package:flutter_web_android/components/report_usuario_modal.dart';
 import 'package:flutter_web_android/components/table_flexible.dart';
+import 'package:flutter_web_android/components/user_list_widget.dart';
 import 'package:flutter_web_android/models/modulo_gestion_usuario_model.dart';
 import 'package:flutter_web_android/screens/Users/list_user_viewmodel.dart';
 import 'package:provider/provider.dart';
@@ -16,7 +18,6 @@ class ListUserScreen extends StatelessWidget {
       child: Consumer<ListUserViewModel>(
         builder: (context, viewModel, child) {
           return Material(
-            // Agregamos Material para asegurar el contexto
             child: Stack(
               children: [
                 Container(
@@ -83,13 +84,58 @@ class ListUserScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 16),
                       Expanded(
-                        child: CustomDataTable(
-                          columns: viewModel.columns,
-                          data: viewModel.transformUserData(viewModel.users),
-                          actions: viewModel.getActions(context),
-                          title: 'Usuarios',
-                          primaryColor: const Color(0xFF1E3A8A),
-                        ),
+                        child: !kIsWeb
+                            ? UserListWidget(
+                                users: viewModel.users,
+                                isLoading: viewModel.isLoading,
+                                onUserTap: (user) => viewModel.onViewDetails(
+                                  context,
+                                  {'id': user.id},
+                                ),
+                                actions: [
+                                  UserAction(
+                                    icon: Icons.visibility,
+                                    color: const Color(0xFF6B7280),
+                                    tooltip: 'Ver Detalles',
+                                    onPressed: (user) =>
+                                        viewModel.onViewDetails(
+                                      context,
+                                      {'id': user.id},
+                                    ),
+                                  ),
+                                  UserAction(
+                                    icon: Icons.edit,
+                                    color: const Color(0xFF1E40AF),
+                                    tooltip: 'Editar',
+                                    onPressed: (user) => viewModel.onEdit(
+                                      context,
+                                      {'id': user.id},
+                                    ),
+                                  ),
+                                  UserAction(
+                                    icon: Icons.loop,
+                                    color: Colors.orange,
+                                    tooltip: 'Cambiar Estado',
+                                    onPressed: (user) =>
+                                        viewModel.showChangeEstadoModal(
+                                      context,
+                                      {
+                                        'id': user.id,
+                                        'estado_usuario_nombre':
+                                            user.estado_usuario_nombre,
+                                      },
+                                    ),
+                                  ),
+                                ],
+                              )
+                            : CustomDataTable(
+                                columns: viewModel.columns,
+                                data: viewModel
+                                    .transformUserData(viewModel.users),
+                                actions: viewModel.getActions(context),
+                                title: 'Usuarios',
+                                primaryColor: const Color(0xFF1E3A8A),
+                              ),
                       ),
                     ],
                   ),

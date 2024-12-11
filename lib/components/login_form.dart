@@ -1,8 +1,6 @@
 import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
 import '../screens/login_screen/login_view_model.dart';
 
 class LoginForm extends StatefulWidget {
@@ -24,14 +22,94 @@ class _LoginFormState extends State<LoginForm> {
   bool _passwordVisible = false;
   String _selectedGroup = '';
 
+  // Variables para controlar errores
+  String? _numberError;
+  String? _identifierError;
+  String? _passwordError;
+
+  // Validador para el número
+  String? _validateNumber(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'El número es requerido';
+    }
+    if (!RegExp(r'^[0-9]+$').hasMatch(value)) {
+      return 'Solo se permiten números';
+    }
+    if (value.length > 4) {
+      return 'Máximo 4 números';
+    }
+    return null;
+  }
+
+  // Validador para email o DNI
+  String? _validateIdentifier(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Este campo es requerido';
+    }
+
+    if (value.contains('@')) {
+      // Validación de email
+      final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+      if (!emailRegex.hasMatch(value)) {
+        return 'Correo electrónico inválido';
+      }
+    } else {
+      // Validación de DNI
+      if (!RegExp(r'^[0-9]{8}$').hasMatch(value)) {
+        return 'DNI debe tener 8 dígitos';
+      }
+    }
+    return null;
+  }
+
+  // Validador para contraseña
+  String? _validatePassword(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'La contraseña es requerida';
+    }
+    return null;
+  }
+
+  // Verificar si el formulario es válido
+  bool _isFormValid() {
+    return _selectedGroup.isNotEmpty &&
+        _numberError == null &&
+        _identifierError == null &&
+        _passwordError == null &&
+        _numberController.text.isNotEmpty &&
+        _identifierController.text.isNotEmpty &&
+        _passwordController.text.isNotEmpty;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    // Agregar listeners para validación en tiempo real
+    _numberController.addListener(() {
+      setState(() {
+        _numberError = _validateNumber(_numberController.text);
+      });
+    });
+
+    _identifierController.addListener(() {
+      setState(() {
+        _identifierError = _validateIdentifier(_identifierController.text);
+      });
+    });
+
+    _passwordController.addListener(() {
+      setState(() {
+        _passwordError = _validatePassword(_passwordController.text);
+      });
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Obtenemos el ViewModel a través de Provider
     return Consumer<LoginViewModel>(
       builder: (context, viewModel, child) {
-        // Mostramos un indicador de carga si está en proceso
         if (viewModel.status == LoginStatus.loading) {
-          return Center(child: CircularProgressIndicator());
+          return const Center(child: CircularProgressIndicator());
         }
 
         return Material(
@@ -53,20 +131,19 @@ class _LoginFormState extends State<LoginForm> {
                   value: _selectedGroup.isEmpty ? null : _selectedGroup,
                   decoration: InputDecoration(
                     labelText: 'Grupo',
-                    labelStyle: TextStyle(
-                      color: Colors.grey[600],
+                    prefixIcon: const Icon(Icons.group_outlined),
+                    labelStyle: TextStyle(color: Colors.grey[600]),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
                     ),
                     enabledBorder: OutlineInputBorder(
-                      borderSide: BorderSide(
-                        color: Color(0xFFE0E3E7),
-                        width: 1.0,
-                      ),
+                      borderSide: const BorderSide(color: Color(0xFFE0E3E7)),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     filled: true,
-                    fillColor: Color(0xFFF1F4F8),
+                    fillColor: const Color(0xFFF1F4F8),
                   ),
-                  items: [
+                  items: const [
                     DropdownMenuItem(
                       value: 'Simbolica',
                       child: Text('Simbólica'),
@@ -76,82 +153,102 @@ class _LoginFormState extends State<LoginForm> {
                       child: Text('Regular'),
                     ),
                   ],
-                  dropdownColor: Color.fromARGB(255, 255, 255, 255),
+                  dropdownColor: const Color.fromARGB(255, 255, 255, 255),
                   onChanged: (String? value) {
                     setState(() {
                       _selectedGroup = value ?? '';
                     });
                   },
-                  hint: Text('Selecciona un grupo'),
+                  hint: const Text('Selecciona un grupo'),
                 ),
-                SizedBox(height: 16),
-
-                // Número
+                const SizedBox(height: 16),
                 TextFormField(
                   controller: _numberController,
                   decoration: InputDecoration(
                     labelText: 'Número',
-                    labelStyle: TextStyle(
-                      color: Colors.grey[600],
+                    prefixIcon: Icon(
+                      Icons.tag,
+                      color:
+                          _numberError != null ? Colors.red : Colors.grey[600],
                     ),
-                    hintText: 'Ingresa tu número',
+                    errorText: _numberError,
+                    labelStyle: TextStyle(color: Colors.grey[600]),
+                    hintText: 'Ingresa tu número (máx. 4 dígitos)',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                     enabledBorder: OutlineInputBorder(
                       borderSide: BorderSide(
-                        color: Color(0xFFE0E3E7),
-                        width: 1.0,
+                        color: _numberError != null
+                            ? Colors.red
+                            : const Color(0xFFE0E3E7),
                       ),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     filled: true,
-                    fillColor: Color(0xFFF1F4F8),
+                    fillColor: const Color(0xFFF1F4F8),
                   ),
                   keyboardType: TextInputType.number,
-                  style: Theme.of(context).textTheme.bodyLarge,
+                  maxLength: 4,
+                  onChanged: (value) {
+                    setState(() {
+                      _numberError = _validateNumber(value);
+                    });
+                  },
                 ),
-                SizedBox(height: 16),
-
-                // Correo o DNI
+                const SizedBox(height: 16),
                 TextFormField(
                   controller: _identifierController,
                   decoration: InputDecoration(
                     labelText: 'Correo electrónico o DNI',
-                    labelStyle: TextStyle(
-                      color: Colors.grey[600],
+                    prefixIcon: Icon(
+                      Icons.person_outline,
+                      color: _identifierError != null
+                          ? Colors.red
+                          : Colors.grey[600],
                     ),
+                    errorText: _identifierError,
+                    labelStyle: TextStyle(color: Colors.grey[600]),
                     hintText: 'Ingresa tu correo o DNI',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                     enabledBorder: OutlineInputBorder(
                       borderSide: BorderSide(
-                        color: Color(0xFFE0E3E7),
-                        width: 1.0,
+                        color: _identifierError != null
+                            ? Colors.red
+                            : const Color(0xFFE0E3E7),
                       ),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     filled: true,
-                    fillColor: Color(0xFFF1F4F8),
+                    fillColor: const Color(0xFFF1F4F8),
                   ),
-                  style: Theme.of(context).textTheme.bodyLarge,
+                  onChanged: (value) {
+                    setState(() {
+                      _identifierError = _validateIdentifier(value);
+                    });
+                  },
                 ),
-                SizedBox(height: 16),
-
-                // Contraseña
+                const SizedBox(height: 16),
                 TextFormField(
                   controller: _passwordController,
                   obscureText: !_passwordVisible,
                   decoration: InputDecoration(
                     labelText: 'Contraseña',
-                    labelStyle: TextStyle(
-                      color: Colors.grey[600],
-                    ),
+                    errorText: _passwordError,
+                    labelStyle: TextStyle(color: Colors.grey[600]),
                     hintText: 'Ingresa tu contraseña',
                     enabledBorder: OutlineInputBorder(
                       borderSide: BorderSide(
-                        color: Color(0xFFE0E3E7),
-                        width: 1.0,
+                        color: _passwordError != null
+                            ? Colors.red
+                            : const Color(0xFFE0E3E7),
                       ),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     filled: true,
-                    fillColor: Color(0xFFF1F4F8),
+                    fillColor: const Color(0xFFF1F4F8),
                     suffixIcon: IconButton(
                       icon: Icon(
                         _passwordVisible
@@ -166,18 +263,15 @@ class _LoginFormState extends State<LoginForm> {
                       },
                     ),
                   ),
-                  style: Theme.of(context).textTheme.bodyLarge,
                 ),
-                SizedBox(height: 16),
-
-                // Olvidó contraseña
+                const SizedBox(height: 16),
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(
                     onPressed: () {
                       // Implementar recuperación de contraseña
                     },
-                    child: Text(
+                    child: const Text(
                       '¿Has olvidado tu contraseña?',
                       style: TextStyle(
                         color: Color(0xFF3A53FF),
@@ -186,52 +280,90 @@ class _LoginFormState extends State<LoginForm> {
                     ),
                   ),
                 ),
-                SizedBox(height: 24),
-
-                // Mostrar mensaje de error si existe
+                const SizedBox(height: 24),
                 if (viewModel.errorMessage != null)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 16),
-                    child: Text(
-                      viewModel.errorMessage!,
-                      style: TextStyle(color: Colors.red),
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 16),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.red.shade100),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.error_outline,
+                          color: Colors.red.shade700,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            viewModel.errorMessage!,
+                            style: TextStyle(
+                              color: Colors.red.shade700,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-
-                // Botón de inicio de sesión modificado
                 ElevatedButton(
-                  onPressed: () async {
-                    if (_selectedGroup.isNotEmpty &&
-                        _numberController.text.isNotEmpty &&
-                        _identifierController.text.isNotEmpty &&
-                        _passwordController.text.isNotEmpty) {
-                      final success = await viewModel.login(
-                        grupo: _selectedGroup,
-                        numero: _numberController.text,
-                        username: _identifierController.text,
-                        password: _passwordController.text,
-                      );
+                  onPressed: _isFormValid()
+                      ? () async {
+                          final success = await viewModel.login(
+                            grupo: _selectedGroup,
+                            numero: _numberController.text,
+                            username: _identifierController.text,
+                            password: _passwordController.text,
+                          );
 
-                      if (success) {
-                        widget.onLoginSuccess();
-                      }
-                    }
-                  },
+                          if (success) {
+                            widget.onLoginSuccess();
+                          }
+                        }
+                      : null,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Color(0xFF3A53FF),
-                    padding: EdgeInsets.symmetric(vertical: 16),
+                    backgroundColor: const Color(0xFF3A53FF),
+                    disabledBackgroundColor:
+                        const Color(0xFF3A53FF).withOpacity(0.5),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(28),
                     ),
-                    minimumSize: Size(double.infinity, 56),
-                  ),
-                  child: Text(
-                    'Iniciar Sesión',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
+                    minimumSize: const Size(double.infinity, 56),
+                    elevation: 2,
+                  ).copyWith(
+                    elevation: MaterialStateProperty.resolveWith<double>(
+                      (Set<MaterialState> states) {
+                        if (states.contains(MaterialState.pressed)) {
+                          return 8;
+                        }
+                        return 2;
+                      },
                     ),
                   ),
+                  child: viewModel.status == LoginStatus.loading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            valueColor:
+                                AlwaysStoppedAnimation<Color>(Colors.white),
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Text(
+                          'Iniciar Sesión',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
                 ),
               ],
             ),

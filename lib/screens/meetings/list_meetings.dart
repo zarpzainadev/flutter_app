@@ -1,7 +1,11 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_web_android/components/custom_loading.dart';
+import 'package:flutter_web_android/components/generic_list_widget.dart';
 import 'package:flutter_web_android/components/report_meeting_modal.dart';
 import 'package:flutter_web_android/components/table_flexible.dart';
+import 'package:flutter_web_android/models/modulo_gestion_usuario_model.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'list_meeting_viewmodel.dart';
 
@@ -14,6 +18,17 @@ class ListMeetings extends StatelessWidget {
       create: (_) => ListMeetingViewModel(),
       child: _ListMeetingsContent(),
     );
+  }
+}
+
+Color _getStatusColor(String estado) {
+  switch (estado) {
+    case 'Publicada':
+      return Colors.green;
+    case 'Inactiva':
+      return Colors.red;
+    default:
+      return Colors.orange;
   }
 }
 
@@ -132,13 +147,134 @@ class _ListMeetingsContent extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   Expanded(
-                    child: CustomDataTable(
-                      columns: viewModel.columns,
-                      data: viewModel.transformMeetingData(viewModel.meetings),
-                      actions: viewModel.getActions(context),
-                      title: 'Reuniones',
-                      primaryColor: const Color(0xFF1E3A8A),
-                    ),
+                    child: !kIsWeb
+                        ? GenericListWidget<MeetingListResponse>(
+                            items: viewModel.meetings,
+                            isLoading: viewModel.isLoading,
+                            emptyMessage: 'No hay reuniones registradas',
+                            emptyIcon: Icons.event_busy,
+                            getTitle: (meeting) => meeting.lugar,
+                            getSubtitle: (meeting) =>
+                                DateFormat('dd/MM/yyyy HH:mm')
+                                    .format(meeting.fecha),
+                            getAvatarWidget: (meeting) =>
+                                _getLeadingIcon(meeting.estado),
+                            getChips: (meeting) => [
+                              ChipInfo(
+                                icon: Icons.description,
+                                label: meeting.agenda,
+                                backgroundColor: Colors.blue.shade50,
+                                textColor: Colors.blue.shade900,
+                                maxWidth: MediaQuery.of(context).size.width *
+                                    0.7, // Limitar el ancho
+                                maxLines: 2, // Permitir hasta 2 líneas
+                              ),
+                              ChipInfo(
+                                icon: Icons.info_outline,
+                                label: meeting.estado,
+                                backgroundColor: _getStatusColor(meeting.estado)
+                                    .withOpacity(0.1),
+                                textColor: _getStatusColor(meeting.estado),
+                              ),
+                            ],
+                            actions: [
+                              GenericAction(
+                                icon: Icons.edit,
+                                color: const Color(0xFF1E40AF),
+                                tooltip: 'Actualizar Reunión',
+                                onPressed: (meeting) =>
+                                    viewModel.onUpdateMeeting(
+                                  context,
+                                  {
+                                    'id': meeting.id,
+                                    'descripcion': meeting.agenda,
+                                    'fecha': meeting.fecha,
+                                    'lugar': meeting.lugar,
+                                    'estado': meeting.estado,
+                                  },
+                                ),
+                              ),
+                              GenericAction(
+                                icon: Icons.publish,
+                                color: Colors.green,
+                                tooltip: 'Publicar Reunión',
+                                onPressed: (meeting) => viewModel.onPublish(
+                                  context,
+                                  {
+                                    'id': meeting.id,
+                                    'estado': meeting.estado,
+                                  },
+                                ),
+                                isVisible: (meeting) =>
+                                    meeting.estado != 'Publicada' &&
+                                    meeting.estado != 'Inactiva',
+                                getColor: (meeting) {
+                                  switch (meeting.estado) {
+                                    case 'Publicada':
+                                      return Colors.grey;
+                                    case 'Inactiva':
+                                      return Colors.red.shade300;
+                                    default:
+                                      return Colors.green;
+                                  }
+                                },
+                                getTooltip: (meeting) {
+                                  switch (meeting.estado) {
+                                    case 'Publicada':
+                                      return 'Ya está publicada';
+                                    case 'Inactiva':
+                                      return 'No se puede publicar una reunión inactiva';
+                                    default:
+                                      return 'Publicar Reunión';
+                                  }
+                                },
+                              ),
+                              GenericAction(
+                                icon: Icons.description,
+                                color: Colors.orange,
+                                tooltip: 'Registrar Acta',
+                                onPressed: (meeting) =>
+                                    viewModel.onRegisterActa(
+                                  context,
+                                  {
+                                    'id': meeting.id,
+                                    'estado': meeting.estado,
+                                  },
+                                ),
+                              ),
+                              GenericAction(
+                                icon: Icons.people,
+                                color: Colors.blue,
+                                tooltip: 'Gestionar Asistencia',
+                                onPressed: (meeting) =>
+                                    viewModel.onManageAssistance(
+                                  context,
+                                  {
+                                    'id': meeting.id,
+                                    'estado': meeting.estado,
+                                    'tiene_asistencia':
+                                        meeting.tiene_asistencia,
+                                  },
+                                ),
+                                getTooltip: (meeting) => meeting.estado !=
+                                        'Publicada'
+                                    ? 'Solo disponible para reuniones publicadas'
+                                    : 'Gestionar Asistencia',
+                                getColor: (meeting) =>
+                                    meeting.estado != 'Publicada'
+                                        ? Colors.grey
+                                        : Colors.blue,
+                              ),
+                            ],
+                          )
+                        : CustomDataTable(
+                            columns: viewModel.columns,
+                            data: viewModel
+                                .transformMeetingData(viewModel.meetings),
+                            actions: viewModel.getActions(context),
+                            title: 'Reuniones',
+                            primaryColor: const Color(0xFF1E3A8A),
+                          ),
                   ),
                 ],
               ),
@@ -147,6 +283,35 @@ class _ListMeetingsContent extends StatelessWidget {
           ],
         );
       },
+    );
+  }
+
+  Widget _getLeadingIcon(String estado) {
+    IconData icon;
+    Color backgroundColor;
+    Color iconColor;
+
+    switch (estado) {
+      case 'Publicada':
+        icon = Icons.event_available;
+        backgroundColor = Colors.green.shade50;
+        iconColor = Colors.green.shade700;
+        break;
+      case 'Inactiva':
+        icon = Icons.event_busy;
+        backgroundColor = Colors.red.shade50;
+        iconColor = Colors.red.shade700;
+        break;
+      default: // Borrador
+        icon = Icons.event_note;
+        backgroundColor = Colors.orange.shade50;
+        iconColor = Colors.orange.shade700;
+        break;
+    }
+
+    return CircleAvatar(
+      backgroundColor: backgroundColor,
+      child: Icon(icon, color: iconColor, size: 20),
     );
   }
 }

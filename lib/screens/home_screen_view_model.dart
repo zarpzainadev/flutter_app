@@ -45,20 +45,30 @@ class HomeScreenViewModel extends ChangeNotifier {
     try {
       final token = await StorageService.getToken();
       if (token != null) {
-        // Primero hacer la llamada API con el token
-        await _apiService.logoutSession(token.accessToken);
+        try {
+          await _apiService.logoutSession(token.accessToken);
+        } catch (e) {
+          debugPrint('Error en logout del servidor: $e');
+        }
 
-        // Después de éxito, limpiar storage
         await StorageService.clearAll();
+      }
 
-        // Finalmente navegar
+      if (context.mounted) {
         Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => LoginScreen()),
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
           (route) => false,
         );
       }
     } catch (e) {
-      throw Exception('Error al cerrar sesión: $e');
+      debugPrint('Error en proceso de logout: $e');
+      await StorageService.clearAll();
+      if (context.mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+          (route) => false,
+        );
+      }
     }
   }
 

@@ -1,5 +1,8 @@
 // lib/screens/assistance/assistance_historical_screen.dart
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_web_android/components/generic_list_widget.dart';
+import 'package:flutter_web_android/models/modulo_user_meetings.dart';
 import 'package:flutter_web_android/screens/assistance_historical_user/assistance_historical_user_viewmodel.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -144,71 +147,183 @@ class _AssistanceHistoricalContent extends StatelessWidget {
 
   Widget _buildAssistancesList(
       BuildContext context, AssistanceHistoricalViewModel viewModel) {
-    return GridView.builder(
-      gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-        maxCrossAxisExtent: 300,
-        mainAxisExtent: 120,
-        crossAxisSpacing: 16,
-        mainAxisSpacing: 16,
-      ),
-      itemCount: viewModel.asistencias.length,
-      itemBuilder: (context, index) {
-        final asistencia = viewModel.asistencias[index];
-        return Card(
-          elevation: 2,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  DateFormat('dd MMMM yyyy', 'es_ES').format(asistencia.fecha),
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                _buildEstadoChip(asistencia.estado),
-              ],
+    return !kIsWeb
+        ? GenericListWidget<AsistenciaUser>(
+            items: viewModel.asistencias,
+            isLoading: viewModel.isLoading,
+            emptyMessage: 'No hay registros de asistencia',
+            emptyIcon: Icons.calendar_today_outlined,
+            getTitle: (asistencia) =>
+                DateFormat('dd/MM/yyyy').format(asistencia.fecha),
+            getSubtitle: (asistencia) => '', // Dejamos el subtítulo vacío
+            getAvatarWidget: (asistencia) => CircleAvatar(
+              backgroundColor:
+                  _getEstadoColor(asistencia.estado).withOpacity(0.1),
+              child: Icon(
+                _getEstadoIcon(asistencia.estado),
+                color: _getEstadoColor(asistencia.estado),
+                size: 20,
+              ),
             ),
-          ),
-        );
-      },
-    );
+            getChips: (asistencia) => [
+              ChipInfo(
+                icon: _getEstadoIcon(asistencia.estado),
+                label: _getEstadoText(asistencia.estado),
+                backgroundColor:
+                    _getEstadoColor(asistencia.estado).withOpacity(0.1),
+                textColor: _getEstadoColor(asistencia.estado),
+              ),
+            ],
+            actions: const [],
+          )
+        : Card(
+            elevation: 2,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minWidth: MediaQuery.of(context).size.width - 48,
+                ),
+                child: DataTable(
+                  headingRowColor: MaterialStateProperty.all(
+                      const Color(0xFF1E3A8A).withOpacity(0.1)),
+                  columnSpacing: 40,
+                  horizontalMargin: 24,
+                  dataRowHeight: 60,
+                  columns: [
+                    DataColumn(
+                      label: Padding(
+                        padding: const EdgeInsets.only(left: 16),
+                        child: Text(
+                          'Fecha',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: const Color(0xFF1E3A8A),
+                          ),
+                        ),
+                      ),
+                    ),
+                    DataColumn(
+                      label: Padding(
+                        padding: const EdgeInsets.only(left: 16),
+                        child: Text(
+                          'Estado',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: const Color(0xFF1E3A8A),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                  rows: viewModel.asistencias.map((asistencia) {
+                    return DataRow(
+                      cells: [
+                        DataCell(
+                          Padding(
+                            padding: const EdgeInsets.only(left: 16),
+                            child: Text(
+                              DateFormat('dd/MM/yyyy').format(asistencia.fecha),
+                              style: TextStyle(
+                                color: Colors.grey[800],
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
+                        ),
+                        DataCell(
+                          Padding(
+                            padding: const EdgeInsets.only(left: 16),
+                            child: _buildEstadoChip(asistencia.estado),
+                          ),
+                        ),
+                      ],
+                    );
+                  }).toList(),
+                ),
+              ),
+            ),
+          );
   }
 
   Widget _buildEstadoChip(EstadoAsistencia estado) {
-    Color color;
+    Color backgroundColor;
+    Color textColor;
     String text;
 
     switch (estado) {
       case EstadoAsistencia.Asistido:
-        color = Colors.green;
+        backgroundColor = Colors.green.shade50;
+        textColor = Colors.green.shade700;
         text = 'Asistió';
         break;
       case EstadoAsistencia.No_asistido:
-        color = Colors.red;
+        backgroundColor = Colors.red.shade50;
+        textColor = Colors.red.shade700;
         text = 'No Asistió';
         break;
       case EstadoAsistencia.Justificado:
-        color = Colors.orange;
+        backgroundColor = Colors.orange.shade50;
+        textColor = Colors.orange.shade700;
         text = 'Justificado';
         break;
     }
 
-    return Chip(
-      label: Text(
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Text(
         text,
-        style: const TextStyle(
-          color: Colors.white,
+        style: TextStyle(
+          color: textColor,
+          fontSize: 13,
           fontWeight: FontWeight.w500,
         ),
       ),
-      backgroundColor: color,
     );
+  }
+
+  Color _getEstadoColor(EstadoAsistencia estado) {
+    switch (estado) {
+      case EstadoAsistencia.Asistido:
+        return Colors.green;
+      case EstadoAsistencia.No_asistido:
+        return Colors.red;
+      case EstadoAsistencia.Justificado:
+        return Colors.orange;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  IconData _getEstadoIcon(EstadoAsistencia estado) {
+    switch (estado) {
+      case EstadoAsistencia.Asistido:
+        return Icons.check_circle_outline;
+      case EstadoAsistencia.No_asistido:
+        return Icons.cancel_outlined;
+      case EstadoAsistencia.Justificado:
+        return Icons.warning_amber_outlined;
+      default:
+        return Icons.help_outline;
+    }
+  }
+
+  String _getEstadoText(EstadoAsistencia estado) {
+    switch (estado) {
+      case EstadoAsistencia.Asistido:
+        return 'Asistió';
+      case EstadoAsistencia.No_asistido:
+        return 'No Asistió';
+      case EstadoAsistencia.Justificado:
+        return 'Justificado';
+      default:
+        return 'Desconocido';
+    }
   }
 }

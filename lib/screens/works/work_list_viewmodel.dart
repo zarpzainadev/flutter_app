@@ -1,14 +1,18 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_web_android/models/modulo_gestion_usuario_model.dart';
 import 'package:flutter_web_android/services/api_service_admin.dart';
 import 'package:flutter_web_android/storage/storage_services.dart';
 import 'package:intl/intl.dart';
+import '../../../helpers/mobile_download_helper.dart'
+    if (dart.library.html) '../../../helpers/web_download_helper.dart';
 
 class WorkViewModel extends ChangeNotifier {
   final ApiServiceAdmin _apiService;
   bool isLoading = false;
   String? errorMessage;
   bool _disposed = false;
+  bool _isInitialized = false;
 
   // Data
   List<UsuarioConGrado> usuariosActivos = [];
@@ -26,11 +30,19 @@ class WorkViewModel extends ChangeNotifier {
 
   // Inicializar datos
   Future<void> initialize() async {
-    await Future.wait([
-      loadUsuariosActivos(),
-      loadReuniones(),
-      listTrabajos(),
-    ]);
+    if (_isInitialized) return; // Evitar inicializaciones múltiples
+
+    try {
+      await Future.wait([
+        loadUsuariosActivos(),
+        loadReuniones(),
+        listTrabajos(),
+      ]);
+      _isInitialized = true;
+    } catch (e) {
+      debugPrint('Error en initialize: $e');
+      errorMessage = 'Error al inicializar: $e';
+    }
   }
 
   // Future para cargar usuarios activos
@@ -168,5 +180,29 @@ class WorkViewModel extends ChangeNotifier {
   void dispose() {
     _disposed = true;
     super.dispose();
+  }
+
+  Future<void> generateWorksReport(String formato) async {
+    try {
+      isLoading = true;
+      _safeNotifyListeners();
+
+      final token = await _getToken();
+      final bytes = await _apiService.generateWorksReport(token, formato);
+
+      if (kIsWeb) {
+        await handleWebDownload(
+            bytes, 'trabajos', formato == 'excel' ? 'xlsx' : 'pdf');
+      } else {
+        await handleMobileDownload(
+            bytes, 'trabajos', formato == 'excel' ? 'xlsx' : 'pdf');
+      }
+    } catch (e) {
+      errorMessage = 'Error al generar reporte: $e';
+      debugPrint('Error en generateWorksReport: $e');
+    } finally {
+      isLoading = false;
+      _safeNotifyListeners();
+    }
   }
 }

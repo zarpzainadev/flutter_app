@@ -24,22 +24,26 @@ class _CreateTrabajoModalState extends State<CreateTrabajoModal> {
   final _formKey = GlobalKey<FormState>();
   final _tituloController = TextEditingController();
   final _descripcionController = TextEditingController();
-  final _usuarioSearchController = TextEditingController();
-  final _reunionSearchController = TextEditingController();
   DateTime _fechaPresentacion = DateTime.now();
+  bool _isInitialized = false;
 
   @override
   void initState() {
     super.initState();
-    // Cargar datos iniciales
-    _loadInitialData();
+    // Usar addPostFrameCallback para evitar setState durante el build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadInitialData();
+    });
   }
 
   Future<void> _loadInitialData() async {
-    // Cargar usuarios y reuniones
-    await widget.viewModel.initialize();
-    if (mounted) {
-      setState(() {});
+    if (!_isInitialized) {
+      await widget.viewModel.initialize();
+      if (mounted) {
+        setState(() {
+          _isInitialized = true;
+        });
+      }
     }
   }
 

@@ -43,12 +43,10 @@ class LoginViewModel extends ChangeNotifier {
     required String password,
   }) async {
     try {
-      // Actualizamos el estado a loading
       _status = LoginStatus.loading;
       _errorMessage = null;
       notifyListeners();
 
-      // Creamos el request
       final loginRequest = LoginRequest(
         grupo: grupo,
         numero: numero,
@@ -56,25 +54,32 @@ class LoginViewModel extends ChangeNotifier {
         password: password,
       );
 
-      // Llamamos al API
       _token = await _apiService.login(loginRequest);
-
-      // Guardar el token
       await StorageService.saveToken(_token!);
-      final savedToken = await StorageService.getToken();
-      print('Token guardado: $savedToken');
 
-      // Actualizamos el estado a success
       _status = LoginStatus.success;
       notifyListeners();
-
       return true;
     } catch (e) {
-      // En caso de error, actualizamos el estado
       _status = LoginStatus.error;
-      _errorMessage = e.toString();
-      notifyListeners();
 
+      // Manejar diferentes tipos de errores
+      if (e.toString().contains('404')) {
+        _errorMessage =
+            'Organización no encontrada para el grupo y número ingresados';
+      } else if (e.toString().contains('401')) {
+        _errorMessage = 'Usuario o contraseña incorrectos';
+      } else if (e.toString().contains('403')) {
+        if (e.toString().contains('bloqueada')) {
+          _errorMessage = 'Cuenta bloqueada por múltiples intentos fallidos';
+        } else {
+          _errorMessage = 'El usuario no pertenece a esta organización';
+        }
+      } else {
+        _errorMessage = 'Error de conexión. Por favor, intente más tarde';
+      }
+
+      notifyListeners();
       return false;
     }
   }
