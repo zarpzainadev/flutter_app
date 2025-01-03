@@ -1206,4 +1206,86 @@ class ApiServiceAdmin {
       );
     }
   }
+
+  Future<FotoInvitacionResponse> uploadFotoInvitacion(
+    String token,
+    Uint8List fileBytes,
+    String fileName,
+    String mimeType,
+  ) async {
+    try {
+      final formData = FormData.fromMap({
+        'file': MultipartFile.fromBytes(
+          fileBytes,
+          filename: fileName,
+          contentType: MediaType.parse(mimeType),
+        ),
+      });
+
+      final response = await _dio.post(
+        '/meeting/meetings/foto-invitacion/',
+        data: formData,
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+          },
+          validateStatus: (status) => status! < 500,
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        return FotoInvitacionResponse.fromJson(response.data);
+      }
+
+      throw FotoInvitacionError(
+        response.data['detail'] ?? 'Error al subir la foto de invitación',
+        statusCode: response.statusCode,
+      );
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 401) {
+        throw FotoInvitacionError(
+          'No autorizado - Token inválido o expirado',
+          statusCode: 401,
+        );
+      }
+      throw FotoInvitacionError(
+        'Error de red: ${e.message}',
+        statusCode: e.response?.statusCode,
+      );
+    }
+  }
+
+// Future para obtener la última foto de invitación
+  Future<Uint8List> getUltimaFotoInvitacion() async {
+    try {
+      final response = await _dio.get(
+        '/meeting/meetings/ultima-foto-invitacion/',
+        options: Options(
+          responseType: ResponseType.bytes,
+          validateStatus: (status) => status! < 500,
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        return Uint8List.fromList(response.data);
+      }
+
+      if (response.statusCode == 404) {
+        throw FotoInvitacionError(
+          'No hay fotos de invitación disponibles',
+          statusCode: 404,
+        );
+      }
+
+      throw FotoInvitacionError(
+        'Error al obtener la foto de invitación',
+        statusCode: response.statusCode,
+      );
+    } on DioException catch (e) {
+      throw FotoInvitacionError(
+        'Error de red: ${e.message}',
+        statusCode: e.response?.statusCode,
+      );
+    }
+  }
 }

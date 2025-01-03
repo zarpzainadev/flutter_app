@@ -58,12 +58,19 @@ class _CalendarWidgetState extends State<CalendarWidget> {
 
   @override
   Widget build(BuildContext context) {
-    // Detectar si estamos en web
     final isWeb = kIsWeb;
+    final now = DateTime.now();
 
-    // Ordenar las reuniones por fecha
+    // Filtrar reuniones publicadas y futuras, luego ordenar por proximidad
     final sortedMeetings = List<MeetingListResponse>.from(widget.meetings)
-      ..sort((a, b) => a.fecha.compareTo(b.fecha));
+        .where((meeting) =>
+            meeting.estado == 'Publicada' && meeting.fecha.isAfter(now))
+        .toList()
+      ..sort((a, b) {
+        final diffA = a.fecha.difference(now).abs();
+        final diffB = b.fecha.difference(now).abs();
+        return diffA.compareTo(diffB);
+      });
 
     // Widget de la lista de eventos
     Widget eventsList = Container(
@@ -78,216 +85,236 @@ class _CalendarWidgetState extends State<CalendarWidget> {
             padding: const EdgeInsets.all(16),
           ),
           Expanded(
-            child: ListView.builder(
-              controller: _scrollController,
-              itemCount: sortedMeetings.length,
-              itemBuilder: (context, index) {
-                final meeting = sortedMeetings[index];
-                return Container(
-                  margin: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.all(8.0),
-                        child: Text(
-                          DateFormat('EEEE d MMMM, yyyy', 'es_ES')
-                              .format(meeting.fecha),
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                        ),
+            child: sortedMeetings.isEmpty
+                ? Center(
+                    child: Text(
+                      'No hay reuniones programadas',
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontSize: 16,
                       ),
-                      Card(
+                    ),
+                  )
+                : ListView.builder(
+                    controller: _scrollController,
+                    itemCount: sortedMeetings.length,
+                    itemBuilder: (context, index) {
+                      final meeting = sortedMeetings[index];
+                      return Container(
                         margin: const EdgeInsets.symmetric(
                           horizontal: 8,
                           vertical: 4,
                         ),
-                        child: Theme(
-                          data: Theme.of(context)
-                              .copyWith(dividerColor: Colors.transparent),
-                          child: ExpansionTile(
-                            leading: Container(
-                              width: 4,
-                              height: 40,
-                              color: DateTime.now().isAfter(meeting.fecha)
-                                  ? Colors.red.shade700
-                                  : Colors.blue.shade700,
-                            ),
-                            title: Text(
-                              meeting.lugar,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w500,
-                                fontSize: 15,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: Text(
+                                DateFormat('EEEE d MMMM, yyyy', 'es_ES')
+                                    .format(meeting.fecha),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
                               ),
                             ),
-                            subtitle: Text(
-                              DateFormat('HH:mm').format(meeting.fecha),
-                              style: TextStyle(
-                                color: Colors.blue.shade700,
-                                fontSize: 13,
+                            Card(
+                              margin: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
                               ),
-                            ),
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(16),
-                                width: double.infinity,
-                                decoration: BoxDecoration(
-                                  color: Colors.grey.shade50,
-                                  border: Border(
-                                    top: BorderSide(
-                                      color: Colors.grey.shade200,
-                                      width: 1,
+                              child: Theme(
+                                data: Theme.of(context)
+                                    .copyWith(dividerColor: Colors.transparent),
+                                child: ExpansionTile(
+                                  leading: Container(
+                                    width: 4,
+                                    height: 40,
+                                    color: DateTime.now().isAfter(meeting.fecha)
+                                        ? Colors.red.shade700
+                                        : Colors.blue.shade700,
+                                  ),
+                                  title: Text(
+                                    meeting.lugar,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w500,
+                                      fontSize: 15,
                                     ),
                                   ),
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  subtitle: Text(
+                                    DateFormat('HH:mm').format(meeting.fecha),
+                                    style: TextStyle(
+                                      color: Colors.blue.shade700,
+                                      fontSize: 13,
+                                    ),
+                                  ),
                                   children: [
-                                    Row(
-                                      children: [
-                                        Icon(Icons.calendar_today,
-                                            size: 16,
-                                            color: Colors.grey.shade700),
-                                        const SizedBox(width: 8),
-                                        Text(
-                                          DateFormat(
-                                                  'dd/MM/yyyy HH:mm', 'es_ES')
-                                              .format(meeting.fecha),
-                                          style: TextStyle(
-                                            color: Colors.grey.shade700,
+                                    Container(
+                                      padding: const EdgeInsets.all(16),
+                                      width: double.infinity,
+                                      decoration: BoxDecoration(
+                                        color: Colors.grey.shade50,
+                                        border: Border(
+                                          top: BorderSide(
+                                            color: Colors.grey.shade200,
+                                            width: 1,
                                           ),
                                         ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Row(
-                                      children: [
-                                        Icon(Icons.location_on,
-                                            size: 16,
-                                            color: Colors.grey.shade700),
-                                        const SizedBox(width: 8),
-                                        Text(
-                                          meeting.lugar,
-                                          style: TextStyle(
-                                            color: Colors.grey.shade700,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 12),
-                                    Text(
-                                      'Agenda:',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.w500,
-                                        color: Colors.grey.shade700,
                                       ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      meeting.agenda,
-                                      style: TextStyle(
-                                        color: Colors.grey.shade700,
-                                      ),
-                                    ),
-                                    if (meeting.tiene_asistencia) ...[
-                                      const SizedBox(height: 16),
-                                      FutureBuilder<Token?>(
-                                        future: StorageService.getToken(),
-                                        builder: (context, snapshot) {
-                                          if (!snapshot.hasData)
-                                            return const SizedBox.shrink();
-
-                                          // Decodificar el token para obtener el rol_id
-                                          final token =
-                                              snapshot.data!.accessToken;
-                                          final parts = token.split('.');
-                                          if (parts.length != 3)
-                                            return const SizedBox.shrink();
-
-                                          final payload = json.decode(
-                                            utf8.decode(base64Url.decode(
-                                                base64Url.normalize(parts[1]))),
-                                          );
-
-                                          final rolId =
-                                              payload['rol_id'] as int;
-
-                                          // No mostrar para roles 1 (Usuario) y 4 (Tesorero)
-                                          if (rolId == 1 || rolId == 4)
-                                            return const SizedBox.shrink();
-
-                                          return PopupMenuButton<String>(
-                                            onSelected: (formato) async {
-                                              await widget.viewModel
-                                                  .generateAttendanceReport(
-                                                formato,
-                                                reunionId: meeting.id,
-                                              );
-                                            },
-                                            child: Row(
-                                              children: [
-                                                const Icon(Icons.download,
-                                                    color: Color(0xFF1E3A8A)),
-                                                const SizedBox(width: 8),
-                                                Text(
-                                                  'Descargar reporte de asistencia',
-                                                  style: TextStyle(
-                                                    color:
-                                                        const Color(0xFF1E3A8A),
-                                                    fontWeight: FontWeight.w500,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                            itemBuilder: (context) => [
-                                              const PopupMenuItem(
-                                                value: 'excel',
-                                                child: Row(
-                                                  children: [
-                                                    Icon(Icons.table_chart,
-                                                        color:
-                                                            Color(0xFF1E3A8A)),
-                                                    SizedBox(width: 8),
-                                                    Text('Excel'),
-                                                  ],
-                                                ),
-                                              ),
-                                              const PopupMenuItem(
-                                                value: 'pdf',
-                                                child: Row(
-                                                  children: [
-                                                    Icon(Icons.picture_as_pdf,
-                                                        color:
-                                                            Color(0xFF1E3A8A)),
-                                                    SizedBox(width: 8),
-                                                    Text('PDF'),
-                                                  ],
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Icon(Icons.calendar_today,
+                                                  size: 16,
+                                                  color: Colors.grey.shade700),
+                                              const SizedBox(width: 8),
+                                              Text(
+                                                DateFormat('dd/MM/yyyy HH:mm',
+                                                        'es_ES')
+                                                    .format(meeting.fecha),
+                                                style: TextStyle(
+                                                  color: Colors.grey.shade700,
                                                 ),
                                               ),
                                             ],
-                                          );
-                                        },
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Row(
+                                            children: [
+                                              Icon(Icons.location_on,
+                                                  size: 16,
+                                                  color: Colors.grey.shade700),
+                                              const SizedBox(width: 8),
+                                              Text(
+                                                meeting.lugar,
+                                                style: TextStyle(
+                                                  color: Colors.grey.shade700,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 12),
+                                          Text(
+                                            'Agenda:',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.w500,
+                                              color: Colors.grey.shade700,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            meeting.agenda,
+                                            style: TextStyle(
+                                              color: Colors.grey.shade700,
+                                            ),
+                                          ),
+                                          if (meeting.tiene_asistencia) ...[
+                                            const SizedBox(height: 16),
+                                            FutureBuilder<Token?>(
+                                              future: StorageService.getToken(),
+                                              builder: (context, snapshot) {
+                                                if (!snapshot.hasData)
+                                                  return const SizedBox
+                                                      .shrink();
+
+                                                // Decodificar el token para obtener el rol_id
+                                                final token =
+                                                    snapshot.data!.accessToken;
+                                                final parts = token.split('.');
+                                                if (parts.length != 3)
+                                                  return const SizedBox
+                                                      .shrink();
+
+                                                final payload = json.decode(
+                                                  utf8.decode(base64Url.decode(
+                                                      base64Url.normalize(
+                                                          parts[1]))),
+                                                );
+
+                                                final rolId =
+                                                    payload['rol_id'] as int;
+
+                                                // No mostrar para roles 1 (Usuario) y 4 (Tesorero)
+                                                if (rolId == 1 || rolId == 4)
+                                                  return const SizedBox
+                                                      .shrink();
+
+                                                return PopupMenuButton<String>(
+                                                  onSelected: (formato) async {
+                                                    await widget.viewModel
+                                                        .generateAttendanceReport(
+                                                      formato,
+                                                      reunionId: meeting.id,
+                                                    );
+                                                  },
+                                                  child: Row(
+                                                    children: [
+                                                      const Icon(Icons.download,
+                                                          color: Color(
+                                                              0xFF1E3A8A)),
+                                                      const SizedBox(width: 8),
+                                                      Text(
+                                                        'Descargar reporte de asistencia',
+                                                        style: TextStyle(
+                                                          color: const Color(
+                                                              0xFF1E3A8A),
+                                                          fontWeight:
+                                                              FontWeight.w500,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  itemBuilder: (context) => [
+                                                    const PopupMenuItem(
+                                                      value: 'excel',
+                                                      child: Row(
+                                                        children: [
+                                                          Icon(
+                                                              Icons.table_chart,
+                                                              color: Color(
+                                                                  0xFF1E3A8A)),
+                                                          SizedBox(width: 8),
+                                                          Text('Excel'),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                    const PopupMenuItem(
+                                                      value: 'pdf',
+                                                      child: Row(
+                                                        children: [
+                                                          Icon(
+                                                              Icons
+                                                                  .picture_as_pdf,
+                                                              color: Color(
+                                                                  0xFF1E3A8A)),
+                                                          SizedBox(width: 8),
+                                                          Text('PDF'),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  ],
+                                                );
+                                              },
+                                            ),
+                                          ],
+                                        ],
                                       ),
-                                    ],
+                                    ),
                                   ],
                                 ),
                               ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
-                      ),
-                    ],
+                      );
+                    },
                   ),
-                );
-              },
-            ),
           ),
         ],
       ),
@@ -381,8 +408,62 @@ class _CalendarWidgetState extends State<CalendarWidget> {
     if (isWeb) {
       return Row(
         children: [
+          // Lista de eventos (lado izquierdo)
           Expanded(flex: 3, child: eventsList),
-          Expanded(flex: 7, child: calendarWidget),
+          // Espacio para futura imagen (lado derecho)
+          Expanded(
+            flex: 7,
+            child: Container(
+              margin: const EdgeInsets.all(16),
+              color: Colors.white, // Cambiado a fondo blanco
+              child: FutureBuilder<Uint8List?>(
+                future: widget.viewModel.getUltimaFotoInvitacion(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting &&
+                      !snapshot.hasData) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  if (!snapshot.hasData || snapshot.data == null) {
+                    return Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.image_outlined,
+                          size: 64,
+                          color: Colors.grey[400],
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'No hay invitaciones disponibles',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.grey[700],
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Las invitaciones aparecerán aquí',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.grey[500],
+                          ),
+                        ),
+                      ],
+                    );
+                  }
+
+                  return Image.memory(
+                    snapshot.data!,
+                    fit: BoxFit.contain,
+                    width: double.infinity,
+                    height: double.infinity,
+                  );
+                },
+              ),
+            ),
+          ),
         ],
       );
     } else {

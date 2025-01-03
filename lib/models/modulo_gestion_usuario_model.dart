@@ -1246,3 +1246,34 @@ enum EstadoGrado {
     }
   }
 }
+
+class FotoInvitacionResponse {
+  final int id;
+  final String fotoTipoMime;
+  final DateTime fechaSubida;
+
+  FotoInvitacionResponse({
+    required this.id,
+    required this.fotoTipoMime,
+    required this.fechaSubida,
+  });
+
+  factory FotoInvitacionResponse.fromJson(Map<String, dynamic> json) {
+    return FotoInvitacionResponse(
+      id: json['id'] as int,
+      fotoTipoMime: json['foto_tipo_mime'] as String,
+      fechaSubida: DateTime.parse(json['fecha_subida'] as String),
+    );
+  }
+}
+
+// Modelo de error para foto de invitación
+class FotoInvitacionError implements Exception {
+  final String message;
+  final int? statusCode;
+
+  FotoInvitacionError(this.message, {this.statusCode});
+
+  @override
+  String toString() => message;
+}

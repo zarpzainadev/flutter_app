@@ -8,6 +8,7 @@ import 'package:flutter_web_android/components/loading_session_widget.dart';
 import 'package:flutter_web_android/models/modulo_profile_usuario.dart';
 import 'package:flutter_web_android/screens/Profile/profiel_screen_mobile.dart';
 import 'package:flutter_web_android/screens/Profile/profile_viewmodel.dart';
+import 'package:flutter_web_android/screens/login_screen/login_screen.dart';
 import 'package:provider/provider.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -160,58 +161,11 @@ class _ProfileContent extends StatelessWidget {
 
   Widget _buildHeader(UserProfileResponse user, ProfileViewModel viewModel,
       BuildContext context) {
-    return Column(
-      children: [
-        HeaderInfoWidget(
-          nombres: user.nombres,
-          apellidoPaterno: user.apellidos_paterno,
-          apellidoMaterno: user.apellidos_materno,
-          userPhoto: viewModel.futureUserPhoto,
-        ),
-        const SizedBox(height: 16),
-        ElevatedButton.icon(
-          onPressed: () {
-            showDialog(
-              context: context,
-              barrierDismissible: false, // Prevenir cierre accidental
-              builder: (dialogContext) => ChangePasswordModal(
-                onChangePassword: (newPassword) async {
-                  try {
-                    // Cerrar el modal de cambio de contraseña
-                    Navigator.of(dialogContext).pop();
-
-                    // Mostrar loading y proceder con el cambio
-                    showDialog(
-                      context: context,
-                      barrierDismissible: false,
-                      builder: (_) => const LoadingSessionWidget(),
-                    );
-
-                    // Cambiar contraseña y hacer logout
-                    await viewModel.changePassword(newPassword, context);
-                  } catch (e) {
-                    // Si hay error, mostrar mensaje
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Error: $e'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                    }
-                  }
-                },
-              ),
-            );
-          },
-          icon: const Icon(Icons.lock_reset),
-          label: const Text('Cambiar Contraseña'),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF1E3A8A),
-            foregroundColor: Colors.white,
-          ),
-        ),
-      ],
+    return HeaderInfoWidget(
+      nombres: user.nombres,
+      apellidoPaterno: user.apellidos_paterno,
+      apellidoMaterno: user.apellidos_materno,
+      userPhoto: viewModel.futureUserPhoto,
     );
   }
 

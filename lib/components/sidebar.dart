@@ -8,6 +8,7 @@ import 'package:flutter_web_android/screens/assistance_historical_user/assistanc
 import 'package:flutter_web_android/screens/calendar/calendar_screen.dart';
 import 'package:flutter_web_android/screens/grados/grados_screen.dart';
 import 'package:flutter_web_android/screens/meetings/list_meetings.dart';
+import 'package:flutter_web_android/screens/password/change_password_screen.dart';
 import 'package:flutter_web_android/screens/works/work_list_screen.dart';
 import 'package:flutter_web_android/screens/works_user/works_screen.dart';
 
@@ -136,6 +137,11 @@ final Map<String, ScreenGroup> screenGroups = {
         icon: Icons.payment,
         label: 'Pagos',
         screen: const Center(child: Text('Pagos')),
+      ),
+      SidebarItem(
+        icon: Icons.lock_reset,
+        label: 'Cambiar contraseña',
+        screen: const ChangePasswordScreen(), // Usar la nueva pantalla
       ),
     ],
   ),

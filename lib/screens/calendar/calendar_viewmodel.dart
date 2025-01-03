@@ -12,6 +12,8 @@ class CalendarViewModel extends ChangeNotifier {
   bool _disposed = false;
   bool isLoading = false;
   String? errorMessage;
+  Uint8List? _lastFotoInvitacion;
+  bool _isFotoLoading = false;
 
   DateTime? selectedDate;
 
@@ -142,6 +144,64 @@ class CalendarViewModel extends ChangeNotifier {
       debugPrint('Error en generateAttendanceReport: $e');
     } finally {
       isLoading = false;
+      _safeNotifyListeners();
+    }
+  }
+
+  // Future para subir foto de invitación
+  Future<bool> uploadFotoInvitacion(
+      Uint8List fileBytes, String fileName, String mimeType) async {
+    try {
+      isLoading = true;
+      _safeNotifyListeners();
+
+      final token = await StorageService.getToken();
+      if (token == null) {
+        throw Exception('Token no disponible');
+      }
+
+      await _apiService.uploadFotoInvitacion(
+        token.accessToken,
+        fileBytes,
+        fileName,
+        mimeType,
+      );
+
+      return true;
+    } catch (e) {
+      debugPrint('Error al subir foto de invitación: $e');
+      errorMessage = 'Error al subir la foto de invitación: $e';
+      return false;
+    } finally {
+      isLoading = false;
+      _safeNotifyListeners();
+    }
+  }
+
+// Future para obtener la última foto de invitación
+  Future<Uint8List?> getUltimaFotoInvitacion() async {
+    // Si ya estamos cargando o ya tenemos la imagen, retornar el caché
+    if (_isFotoLoading) return _lastFotoInvitacion;
+    if (_lastFotoInvitacion != null) return _lastFotoInvitacion;
+
+    try {
+      _isFotoLoading = true;
+      _safeNotifyListeners();
+
+      final token = await StorageService.getToken();
+      if (token == null) {
+        throw Exception('Token no disponible');
+      }
+
+      final bytes = await _apiService.getUltimaFotoInvitacion();
+      _lastFotoInvitacion = bytes;
+      return _lastFotoInvitacion;
+    } catch (e) {
+      debugPrint('Error al obtener foto de invitación: $e');
+      errorMessage = 'Error al obtener la foto de invitación: $e';
+      return null;
+    } finally {
+      _isFotoLoading = false;
       _safeNotifyListeners();
     }
   }
