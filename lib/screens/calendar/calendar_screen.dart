@@ -56,71 +56,7 @@ class CalendarScreen extends StatelessWidget {
                           viewModel: viewModel,
                         ),
                       ),
-                      Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: FutureBuilder<Token?>(
-                          future: StorageService.getToken(),
-                          builder: (context, snapshot) {
-                            if (!snapshot.hasData)
-                              return const SizedBox.shrink();
-
-                            // Decodificar el token para obtener el rol_id
-                            final token = snapshot.data!.accessToken;
-                            final parts = token.split('.');
-                            if (parts.length != 3)
-                              return const SizedBox.shrink();
-
-                            final payload = json.decode(
-                              utf8.decode(base64Url
-                                  .decode(base64Url.normalize(parts[1]))),
-                            );
-
-                            final rolId = payload['rol_id'] as int;
-
-                            // Solo mostrar para roles 2 (Admin) y 3 (Secretario)
-                            if (rolId != 2 && rolId != 3)
-                              return const SizedBox.shrink();
-
-                            return Align(
-                              alignment: Alignment.centerRight,
-                              child: ElevatedButton.icon(
-                                onPressed: () async {
-                                  final result =
-                                      await showUploadEventModal(context);
-                                  if (result != null) {
-                                    final success =
-                                        await viewModel.uploadFotoInvitacion(
-                                      result['fileBytes'],
-                                      result['fileName'],
-                                      result['mimeType'],
-                                    );
-                                    if (success && context.mounted) {
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                        const SnackBar(
-                                          content: Text(
-                                              'Imagen subida correctamente'),
-                                          backgroundColor: Colors.green,
-                                        ),
-                                      );
-                                    }
-                                  }
-                                },
-                                icon: const Icon(Icons.upload),
-                                label: const Text('Subir Invitación'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF1E3A8A),
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 24,
-                                    vertical: 16,
-                                  ),
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
+                      
                     ],
                   );
                 },

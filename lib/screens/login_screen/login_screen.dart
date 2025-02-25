@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_web_android/components/login_form.dart';
-import 'package:flutter_web_android/components/profile_image.dart';
+
 import 'package:flutter_web_android/screens/login_screen/login_view_model.dart';
 import 'package:provider/provider.dart';
 import '../home_screen.dart';
@@ -37,8 +37,7 @@ class LoginScreen extends StatelessWidget {
                           mainAxisAlignment: MainAxisAlignment.center,
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            ProfileImage(),
-                            const SizedBox(height: 24),
+                           
                             const Text(
                               'Bienvenido',
                               style: TextStyle(

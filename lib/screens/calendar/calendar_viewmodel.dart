@@ -100,19 +100,30 @@ class CalendarViewModel extends ChangeNotifier {
   }
 
   MeetingListResponse? getMeetingForDate(DateTime date) {
-    return meetings.firstWhere(
-      (meeting) => isSameDay(meeting.fecha, date),
-      orElse: () => MeetingListResponse(
-        id: -1,
-        fecha: date,
-        lugar: '',
-        agenda: '',
-        estado: '',
-        creador_id: -1,
-        tiene_asistencia: false,
-      ),
-    );
-  }
+  return meetings.firstWhere(
+    (meeting) => isSameDay(meeting.fecha, date),
+    orElse: () => MeetingListResponse(
+      id: -1,
+      fecha: date,
+      lugar: '',
+      agenda: {
+        'ops': [
+          {
+            'insert': 'Sin agenda\n',
+            'attributes': {
+              'italic': true,
+              'color': '#666666'
+            }
+          }
+        ]
+      }, // Formato correcto para QuillJS
+      estado: '',
+      creador_id: -1,
+      tiene_asistencia: false,
+      cabecera_invitacion: '',
+    ),
+  );
+}
 
   bool isSameDay(DateTime a, DateTime b) {
     return a.year == b.year && a.month == b.month && a.day == b.day;

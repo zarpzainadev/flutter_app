@@ -97,43 +97,44 @@ class HomeScreenViewModel extends ChangeNotifier {
   }
 
   Future<void> fetchNextMeeting() async {
-    if (_disposed) return;
-    try {
-      isLoading = true;
-      _safeNotifyListeners();
+  if (_disposed) return;
+  try {
+    isLoading = true;
+    _safeNotifyListeners();
 
-      final token = await StorageService.getToken();
-      if (token == null) {
-        throw Exception('Token no disponible');
-      }
-
-      try {
-        nextMeeting = await _apiService.getNextMeeting(token.accessToken);
-        hasNoMeetings = false;
-        errorMessage = null;
-        shouldShowModal = true; // Mantener modal visible
-      } on DioException catch (e) {
-        if (e.response?.statusCode == 404) {
-          hasNoMeetings = true;
-          nextMeeting = null;
-          errorMessage = null;
-          shouldShowModal =
-              true; // Mantener modal visible para mostrar "no hay reuniones"
-        } else {
-          errorMessage = 'Error de conexión';
-          hasNoMeetings = false;
-          shouldShowModal = true; // Mantener modal visible para mostrar error
-        }
-      }
-    } catch (e) {
-      errorMessage = 'Error al obtener la próxima reunión';
-      hasNoMeetings = false;
-      shouldShowModal = true; // Mantener modal visible para mostrar error
-    } finally {
-      isLoading = false;
-      _safeNotifyListeners();
+    final token = await StorageService.getToken();
+    if (token == null) {
+      throw Exception('Token no disponible');
     }
+
+    try {
+      nextMeeting = await _apiService.getNextMeeting(token.accessToken);
+      hasNoMeetings = false;
+      errorMessage = null;
+      shouldShowModal = true;
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) {
+        hasNoMeetings = true;
+        nextMeeting = null;
+        errorMessage = null; 
+        shouldShowModal = true;
+      } else {
+        hasNoMeetings = false;
+        nextMeeting = null;
+        errorMessage = 'Error de conexión';
+        shouldShowModal = true;
+      }
+    }
+  } catch (e) {
+    hasNoMeetings = true; 
+    nextMeeting = null;
+    errorMessage = null; 
+    shouldShowModal = true;
+  } finally {
+    isLoading = false;
+    _safeNotifyListeners();
   }
+}
 
   String getFormattedDate() {
     if (isLoading) return 'Cargando...';
@@ -143,11 +144,16 @@ class HomeScreenViewModel extends ChangeNotifier {
   }
 
   List<String> getAgendaItems() {
-    if (isLoading) return ['Cargando agenda...'];
-    if (hasNoMeetings) return ['No hay reuniones programadas actualmente'];
-    if (nextMeeting == null) return [];
-    return [nextMeeting!.agenda];
-  }
+  if (isLoading) return ['Cargando agenda...'];
+  if (hasNoMeetings) return ['No hay reuniones programadas actualmente'];
+  if (nextMeeting == null) return [];
+  
+  // Extraer solo el texto de las operaciones
+  final ops = (nextMeeting!.agenda['ops'] as List);
+  return [
+    ops.map((op) => op['insert']).join(''),
+  ];
+}
 
   Future<void> refreshAccessToken(BuildContext context) async {
     try {

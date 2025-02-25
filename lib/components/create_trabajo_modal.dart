@@ -1,4 +1,5 @@
 // lib/components/create_trabajo_modal.dart
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_web_android/models/modulo_gestion_usuario_model.dart';
 import 'package:flutter_web_android/screens/works/work_list_viewmodel.dart';
@@ -26,6 +27,8 @@ class _CreateTrabajoModalState extends State<CreateTrabajoModal> {
   final _descripcionController = TextEditingController();
   DateTime _fechaPresentacion = DateTime.now();
   bool _isInitialized = false;
+  List<Map<String, dynamic>> selectedFiles = [];
+  String? errorMessage;
 
   @override
   void initState() {
@@ -46,6 +49,44 @@ class _CreateTrabajoModalState extends State<CreateTrabajoModal> {
       }
     }
   }
+
+  Future<void> _pickFiles() async {
+    try {
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf'],
+        allowMultiple: true,
+      );
+
+      if (result != null) {
+        setState(() {
+          for (var file in result.files) {
+            if (file.bytes != null) {
+              selectedFiles.add({
+                'name': file.name,
+                'bytes': file.bytes!,
+                'mimeType': 'application/pdf',
+              });
+            }
+          }
+          errorMessage = null;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        errorMessage = 'Error al seleccionar archivos: $e';
+      });
+    }
+  }
+
+  // Agregar este método para eliminar un archivo
+  void _removeFile(int index) {
+    setState(() {
+      selectedFiles.removeAt(index);
+    });
+  }
+
+  
 
   @override
   Widget build(BuildContext context) {
@@ -253,6 +294,8 @@ class _CreateTrabajoModalState extends State<CreateTrabajoModal> {
                     ),
                   ),
                 ),
+                const SizedBox(height: 16),
+_buildFileList(),
                 const SizedBox(height: 24),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
@@ -264,31 +307,36 @@ class _CreateTrabajoModalState extends State<CreateTrabajoModal> {
                     const SizedBox(width: 16),
                     ElevatedButton(
                       onPressed: () async {
-                        if (_formKey.currentState!.validate()) {
-                          if (selectedUsuarioId == null ||
-                              selectedReunionId == null) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                    'Por favor seleccione usuario y reunión'),
-                                backgroundColor: Colors.red,
-                              ),
-                            );
-                            return;
-                          }
+    if (_formKey.currentState!.validate()) {
+      if (selectedUsuarioId == null || selectedReunionId == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Por favor seleccione usuario y reunión'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
 
-                          // Cerrar el modal inmediatamente
-                          Navigator.pop(context);
+      // Cerrar el modal inmediatamente
+      Navigator.pop(context);
 
-                          // Realizar la creación en segundo plano
-                          widget.viewModel.createTrabajo(
-                            reunionId: selectedReunionId!,
-                            usuarioId: selectedUsuarioId!,
-                            titulo: _tituloController.text,
-                            descripcion: _descripcionController.text,
-                            fechaPresentacion: _fechaPresentacion,
-                          );
-                        }
+      // Realizar la creación en segundo plano
+      final success = await widget.viewModel.createTrabajo(
+        reunionId: selectedReunionId!,
+        usuarioId: selectedUsuarioId!,
+        titulo: _tituloController.text,
+        descripcion: _descripcionController.text,
+        fechaPresentacion: _fechaPresentacion,
+      );
+
+      // Si la creación fue exitosa y hay archivos, subirlos
+      if (success && selectedFiles.isNotEmpty) {
+        await widget.viewModel.uploadTrabajoFiles(
+          selectedFiles: selectedFiles,
+        );
+      }
+    }
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF1E3A8A),
@@ -305,4 +353,54 @@ class _CreateTrabajoModalState extends State<CreateTrabajoModal> {
       ),
     );
   }
+
+  Widget _buildFileList() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Archivos PDF',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 8),
+        ListView.builder(
+          shrinkWrap: true,
+          itemCount: selectedFiles.length,
+          itemBuilder: (context, index) {
+            final file = selectedFiles[index];
+            return ListTile(
+              leading: const Icon(Icons.picture_as_pdf, color: Colors.red),
+              title: Text(file['name']),
+              trailing: IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: () => _removeFile(index),
+              ),
+            );
+          },
+        ),
+        const SizedBox(height: 8),
+        ElevatedButton.icon(
+          onPressed: _pickFiles,
+          icon: const Icon(Icons.upload_file),
+          label: const Text('Agregar PDFs'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF1E3A8A),
+            foregroundColor: Colors.white,
+          ),
+        ),
+        if (errorMessage != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(
+              errorMessage!,
+              style: TextStyle(color: Colors.red[700], fontSize: 12),
+            ),
+          ),
+      ],
+    );
+  }
 }
+

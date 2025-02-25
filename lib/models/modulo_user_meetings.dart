@@ -3,7 +3,7 @@ import 'package:flutter_web_android/models/modulo_gestion_usuario_model.dart';
 class Meeting {
   final DateTime fecha;
   final String lugar;
-  final String agenda;
+  final Map<String, dynamic> agenda;
   final String estado;
   final int id;
 
@@ -19,7 +19,7 @@ class Meeting {
     return Meeting(
       fecha: DateTime.parse(json['fecha']),
       lugar: json['lugar'],
-      agenda: json['agenda'],
+      agenda: json['agenda'] as Map<String, dynamic>, 
       estado: json['estado'],
       id: json['id'],
     );

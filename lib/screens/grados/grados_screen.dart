@@ -95,12 +95,11 @@ class GradosScreen extends StatelessWidget {
                                       usuario.grado,
                                       (grado, abrevGrado) async {
                                         try {
-                                          final success =
-                                              await viewModel.actualizarGrado(
-                                            usuarioId: usuario.id,
-                                            grado: grado,
-                                            abrevGrado: abrevGrado,
-                                          );
+                                          final success = await viewModel.actualizarGrado(
+  usuarioId: usuario.id,
+  idGrado: grado,
+  estado: 'Activo'
+);
 
                                           if (success && context.mounted) {
                                             ScaffoldMessenger.of(context)
@@ -145,12 +144,11 @@ class GradosScreen extends StatelessWidget {
                                       usuario.id,
                                       (grado, abrevGrado) async {
                                         try {
-                                          final success =
-                                              await viewModel.crearGrado(
-                                            usuarioId: usuario.id,
-                                            grado: grado,
-                                            abrevGrado: abrevGrado,
-                                          );
+                                          final success = await viewModel.crearGrado(
+  usuarioId: usuario.id,
+  idGrado: grado,
+  estado: 'Activo'
+);
 
                                           if (success && context.mounted) {
                                             ScaffoldMessenger.of(context)
@@ -226,14 +224,13 @@ class GradosScreen extends StatelessWidget {
                                     await showUpdateGradoModal(
                                       context,
                                       row['grado'],
-                                      (grado, abrevGrado) async {
+                                      (grado, estado) async {
                                         try {
-                                          final success =
-                                              await viewModel.actualizarGrado(
-                                            usuarioId: row['id'],
-                                            grado: grado,
-                                            abrevGrado: abrevGrado,
-                                          );
+                                          final success = await viewModel.actualizarGrado(
+  usuarioId: row['id'], 
+  idGrado: grado,
+  estado: estado,
+);
 
                                           if (success && context.mounted) {
                                             ScaffoldMessenger.of(context)
@@ -285,14 +282,13 @@ class GradosScreen extends StatelessWidget {
                                     await showCreateGradoModal(
                                       context,
                                       row['id'],
-                                      (grado, abrevGrado) async {
+                                      (grado, estado) async {
                                         try {
-                                          final success =
-                                              await viewModel.crearGrado(
-                                            usuarioId: row['id'],
-                                            grado: grado,
-                                            abrevGrado: abrevGrado,
-                                          );
+                                          final success = await viewModel.crearGrado(
+  usuarioId: row['id'],
+  idGrado: grado, 
+  estado: estado
+);
 
                                           if (success && context.mounted) {
                                             ScaffoldMessenger.of(context)

@@ -1,5 +1,8 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter_web_android/components/custom_loading.dart';
 import 'package:flutter_web_android/components/generic_list_widget.dart';
 import 'package:flutter_web_android/components/report_meeting_modal.dart';
@@ -161,14 +164,15 @@ class _ListMeetingsContent extends StatelessWidget {
                                 _getLeadingIcon(meeting.estado),
                             getChips: (meeting) => [
                               ChipInfo(
-                                icon: Icons.description,
-                                label: meeting.agenda,
-                                backgroundColor: Colors.blue.shade50,
-                                textColor: Colors.blue.shade900,
-                                maxWidth: MediaQuery.of(context).size.width *
-                                    0.7, // Limitar el ancho
-                                maxLines: 2, // Permitir hasta 2 líneas
-                              ),
+  icon: Icons.description,
+  label: (meeting.agenda['ops'] as List)
+      .map((op) => op['insert'])
+      .join(''), // Extrae solo el texto plano
+  backgroundColor: Colors.blue.shade50,
+  textColor: Colors.blue.shade900,
+  maxWidth: MediaQuery.of(context).size.width * 0.7,
+  maxLines: 2,
+),
                               ChipInfo(
                                 icon: Icons.info_outline,
                                 label: meeting.estado,
@@ -179,21 +183,21 @@ class _ListMeetingsContent extends StatelessWidget {
                             ],
                             actions: [
                               GenericAction(
-                                icon: Icons.edit,
-                                color: const Color(0xFF1E40AF),
-                                tooltip: 'Actualizar Reunión',
-                                onPressed: (meeting) =>
-                                    viewModel.onUpdateMeeting(
-                                  context,
-                                  {
-                                    'id': meeting.id,
-                                    'descripcion': meeting.agenda,
-                                    'fecha': meeting.fecha,
-                                    'lugar': meeting.lugar,
-                                    'estado': meeting.estado,
-                                  },
-                                ),
-                              ),
+  icon: Icons.edit,
+  color: const Color(0xFF1E40AF),
+  tooltip: 'Actualizar Reunión',
+  onPressed: (meeting) => viewModel.onUpdateMeeting(
+    context,
+    {
+      'id': meeting.id,
+      'titulo': meeting.cabecera_invitacion,
+      'descripcion': meeting.agenda, // Convertir el Map a string JSON
+      'fecha': meeting.fecha,
+      'lugar': meeting.lugar,
+      'estado': meeting.estado,
+    },
+  ),
+),
                               GenericAction(
                                 icon: Icons.publish,
                                 color: Colors.green,

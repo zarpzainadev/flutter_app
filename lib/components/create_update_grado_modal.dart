@@ -2,17 +2,11 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_web_android/models/modulo_gestion_usuario_model.dart';
+import 'package:provider/provider.dart';
+import 'package:flutter_web_android/screens/grados/grados_viewmodel.dart';
 
-// Mapa de abreviaciones
-const Map<TipoGrado, String> _abreviaciones = {
-  TipoGrado.Aprendiz: ':.A',
-  TipoGrado.Companero: ':.C',
-  TipoGrado.Maestro: ':.M',
-};
-
-// Modal para crear grado
 class CreateGradoModal extends StatefulWidget {
-  final Function(TipoGrado grado, String abrevGrado) onConfirm;
+  final Function(int idGrado, String estado) onConfirm;
   final int usuarioId;
 
   const CreateGradoModal({
@@ -26,7 +20,7 @@ class CreateGradoModal extends StatefulWidget {
 }
 
 class _CreateGradoModalState extends State<CreateGradoModal> {
-  TipoGrado? selectedGrado;
+  GradoSimpleResponse? selectedGrado;
 
   @override
   Widget build(BuildContext context) {
@@ -37,73 +31,87 @@ class _CreateGradoModalState extends State<CreateGradoModal> {
       child: Container(
         padding: const EdgeInsets.all(24),
         width: 400,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Crear Grado',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF1E3A8A),
-              ),
-            ),
-            const SizedBox(height: 24),
-            DropdownButtonFormField<TipoGrado>(
-              value: selectedGrado,
-              decoration: const InputDecoration(
-                labelText: 'Grado',
-                border: OutlineInputBorder(),
-              ),
-              items: TipoGrado.values.map((grado) {
-                return DropdownMenuItem(
-                  value: grado,
-                  child: Text(grado.display),
-                );
-              }).toList(),
-              onChanged: (value) => setState(() => selectedGrado = value),
-            ),
-            const SizedBox(height: 24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+        child: Consumer<GradosViewModel>(
+          builder: (context, viewModel, _) {
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: Text(
-                    'Cancelar',
-                    style: TextStyle(color: Colors.grey[600]),
+                const Text(
+                  'Crear Grado',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1E3A8A),
                   ),
                 ),
-                const SizedBox(width: 16),
-                ElevatedButton(
-                  onPressed: selectedGrado == null
-                      ? null
-                      : () {
-                          widget.onConfirm(
-                            selectedGrado!,
-                            _abreviaciones[selectedGrado]!,
-                          );
-                          Navigator.pop(context);
-                        },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1E3A8A),
-                    foregroundColor: Colors.white,
+                const SizedBox(height: 24),
+                if (viewModel.isLoading)
+                  const Center(child: CircularProgressIndicator())
+                else if (viewModel.gradosOrganizacion.isEmpty)
+                  const Text('No hay grados disponibles')
+                else
+                  DropdownButtonFormField<GradoSimpleResponse>(
+                    value: selectedGrado,
+                    decoration: const InputDecoration(
+                      labelText: 'Grado',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: viewModel.gradosOrganizacion.map((grado) {
+                      return DropdownMenuItem(
+                        value: grado,
+                        child: Text(grado.nombre),
+                      );
+                    }).toList(),
+                    onChanged: (value) => setState(() => selectedGrado = value),
+                    validator: (value) {
+                      if (value == null) {
+                        return 'Por favor seleccione un grado';
+                      }
+                      return null;
+                    },
                   ),
-                  child: const Text('Crear'),
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: Text(
+                        'Cancelar',
+                        style: TextStyle(color: Colors.grey[600]),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    ElevatedButton(
+                      onPressed: selectedGrado == null
+                          ? null
+                          : () {
+                              widget.onConfirm(
+                                selectedGrado!.id,
+                                'Activo',
+                              );
+                              Navigator.pop(context);
+                            },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF1E3A8A),
+                        foregroundColor: Colors.white,
+                      ),
+                      child: const Text('Crear'),
+                    ),
+                  ],
                 ),
               ],
-            ),
-          ],
+            );
+          },
         ),
       ),
     );
   }
 }
 
-// Modal para actualizar grado
 class UpdateGradoModal extends StatefulWidget {
-  final Function(TipoGrado grado, String abrevGrado) onConfirm;
+  final Function(int idGrado, String estado) onConfirm;
   final String gradoActual;
 
   const UpdateGradoModal({
@@ -117,7 +125,7 @@ class UpdateGradoModal extends StatefulWidget {
 }
 
 class _UpdateGradoModalState extends State<UpdateGradoModal> {
-  TipoGrado? selectedGrado;
+  GradoSimpleResponse? selectedGrado;
 
   @override
   Widget build(BuildContext context) {
@@ -128,72 +136,87 @@ class _UpdateGradoModalState extends State<UpdateGradoModal> {
       child: Container(
         padding: const EdgeInsets.all(24),
         width: 400,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Actualizar Grado',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF1E3A8A),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Grado actual: ${widget.gradoActual}',
-              style: TextStyle(
-                color: Colors.grey[600],
-                fontSize: 14,
-              ),
-            ),
-            const SizedBox(height: 24),
-            DropdownButtonFormField<TipoGrado>(
-              value: selectedGrado,
-              decoration: const InputDecoration(
-                labelText: 'Nuevo Grado',
-                border: OutlineInputBorder(),
-              ),
-              items: TipoGrado.values.map((grado) {
-                return DropdownMenuItem(
-                  value: grado,
-                  child: Text(grado.display),
-                );
-              }).toList(),
-              onChanged: (value) => setState(() => selectedGrado = value),
-            ),
-            const SizedBox(height: 24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+        child: Consumer<GradosViewModel>(
+          builder: (context, viewModel, _) {
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: Text(
-                    'Cancelar',
-                    style: TextStyle(color: Colors.grey[600]),
+                const Text(
+                  'Actualizar Grado',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1E3A8A),
                   ),
                 ),
-                const SizedBox(width: 16),
-                ElevatedButton(
-                  onPressed: selectedGrado == null
-                      ? null
-                      : () {
-                          widget.onConfirm(
-                            selectedGrado!,
-                            _abreviaciones[selectedGrado]!,
-                          );
-                          Navigator.pop(context);
-                        },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1E3A8A),
-                    foregroundColor: Colors.white,
+                const SizedBox(height: 16),
+                Text(
+                  'Grado actual: ${widget.gradoActual}',
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontSize: 14,
                   ),
-                  child: const Text('Actualizar'),
+                ),
+                const SizedBox(height: 24),
+                if (viewModel.isLoading)
+                  const Center(child: CircularProgressIndicator())
+                else if (viewModel.gradosOrganizacion.isEmpty)
+                  const Text('No hay grados disponibles')
+                else
+                  DropdownButtonFormField<GradoSimpleResponse>(
+                    value: selectedGrado,
+                    decoration: const InputDecoration(
+                      labelText: 'Nuevo Grado',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: viewModel.gradosOrganizacion.map((grado) {
+                      return DropdownMenuItem(
+                        value: grado,
+                        child: Text(grado.nombre),
+                      );
+                    }).toList(),
+                    onChanged: (value) => setState(() => selectedGrado = value),
+                    validator: (value) {
+                      if (value == null) {
+                        return 'Por favor seleccione un grado';
+                      }
+                      return null;
+                    },
+                  ),
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: Text(
+                        'Cancelar',
+                        style: TextStyle(color: Colors.grey[600]),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    ElevatedButton(
+                      onPressed: selectedGrado == null
+                          ? null
+                          : () {
+                              widget.onConfirm(
+                                selectedGrado!.id,
+                                'Activo',
+                              );
+                              Navigator.pop(context);
+                            },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF1E3A8A),
+                        foregroundColor: Colors.white,
+                      ),
+                      child: const Text('Actualizar'),
+                    ),
+                  ],
                 ),
               ],
-            ),
-          ],
+            );
+          },
         ),
       ),
     );
@@ -204,13 +227,19 @@ class _UpdateGradoModalState extends State<UpdateGradoModal> {
 Future<void> showCreateGradoModal(
   BuildContext context,
   int usuarioId,
-  Function(TipoGrado grado, String abrevGrado) onConfirm,
+  Function(int idGrado, String estado) onConfirm,
 ) {
+  // Obtener el ViewModel existente
+  final viewModel = Provider.of<GradosViewModel>(context, listen: false);
+  
   return showDialog(
     context: context,
-    builder: (context) => CreateGradoModal(
-      usuarioId: usuarioId,
-      onConfirm: onConfirm,
+    builder: (BuildContext dialogContext) => ChangeNotifierProvider.value( // Cambiado aquí
+      value: viewModel,
+      child: CreateGradoModal(
+        usuarioId: usuarioId,
+        onConfirm: onConfirm,
+      ),
     ),
   );
 }
@@ -218,13 +247,19 @@ Future<void> showCreateGradoModal(
 Future<void> showUpdateGradoModal(
   BuildContext context,
   String gradoActual,
-  Function(TipoGrado grado, String abrevGrado) onConfirm,
+  Function(int idGrado, String estado) onConfirm,
 ) {
+  // Obtener el ViewModel existente
+  final viewModel = Provider.of<GradosViewModel>(context, listen: false);
+  
   return showDialog(
     context: context,
-    builder: (context) => UpdateGradoModal(
-      gradoActual: gradoActual,
-      onConfirm: onConfirm,
+    builder: (BuildContext dialogContext) => ChangeNotifierProvider.value( // Cambiado aquí
+      value: viewModel,
+      child: UpdateGradoModal(
+        gradoActual: gradoActual,
+        onConfirm: onConfirm,
+      ),
     ),
   );
 }

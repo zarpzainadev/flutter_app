@@ -838,6 +838,66 @@ class ApiServiceAdmin {
     }
   }
 
+  Future<List<ContenidoTrabajoResponse>> uploadArchivosTrabajoMultiple(
+  String token,
+  int trabajoId,
+  List<Map<String, dynamic>> files,
+) async {
+  try {
+    final formData = FormData();
+    
+    // Agregar cada archivo al FormData
+    for (var fileInfo in files) {
+      formData.files.add(
+        MapEntry(
+          'files',
+          MultipartFile.fromBytes(
+            fileInfo['bytes'] as List<int>,
+            filename: fileInfo['name'] as String,
+            contentType: MediaType.parse(fileInfo['mimeType'] as String),
+          ),
+        ),
+      );
+    }
+
+    final response = await _dio.post(
+      '/meeting/trabajos/$trabajoId/archivos/',
+      data: formData,
+      options: Options(
+        headers: {
+          'Authorization': 'Bearer $token',
+        },
+        validateStatus: (status) => status! < 500,
+      ),
+    );
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      final List<dynamic> data = response.data;
+      return data
+          .map((json) => ContenidoTrabajoResponse.fromJson(json))
+          .toList();
+    }
+
+    if (response.statusCode == 404) {
+      throw ContenidoTrabajoError(
+        'Trabajo no encontrado',
+        statusCode: 404,
+      );
+    }
+
+    throw ContenidoTrabajoError(
+      response.data['detail'] ?? 'Error al subir archivos',
+      statusCode: response.statusCode,
+    );
+  } on DioException catch (e) {
+    debugPrint('DioException en uploadArchivosTrabajoMultiple: ${e.message}');
+    throw ContenidoTrabajoError('Error de red: ${e.message}');
+  } catch (e) {
+    debugPrint('Error inesperado en uploadArchivosTrabajoMultiple: $e');
+    throw ContenidoTrabajoError('Error inesperado: $e');
+  }
+}
+
   // 1. Reporte de reuniones
   Future<List<int>> generateMeetingsReport(String token, String formato) async {
     try {
@@ -1288,4 +1348,508 @@ class ApiServiceAdmin {
       );
     }
   }
+
+
+  Future<List<NewOrganizacionResponse>> listOrganizations(String token) async {
+  try {
+    final response = await _dio.get(
+      '/user/organizations',
+      options: Options(
+        validateStatus: (status) => status! < 500,
+      ),
+    );
+
+    if (response.statusCode == 200) {
+      // Agrega logs para depuración
+      debugPrint('Response data: ${response.data}');
+      
+      final List<dynamic> data = response.data as List<dynamic>;
+      return data.map((json) {
+        try {
+          return NewOrganizacionResponse.fromJson(json as Map<String, dynamic>);
+        } catch (e) {
+          debugPrint('Error parsing organization: $e');
+          debugPrint('JSON data: $json');
+          rethrow;
+        }
+      }).toList();
+    }
+
+    throw NewOrganizacionError(
+      response.data['detail'] ?? 'Error al listar organizaciones',
+      statusCode: response.statusCode,
+    );
+  } on DioException catch (e) {
+    debugPrint('Error DioException: ${e.message}');
+    debugPrint('Response: ${e.response?.data}');
+    throw NewOrganizacionError('Error de red: ${e.message}');
+  }
+}
+
+Future<PasswordUpdateResponse> updateUserPassword(
+  String token,
+  int userId,
+  String newPassword,
+) async {
+  try {
+    final response = await _dio.patch(
+      '/user/users/$userId/password',
+      options: Options(
+        headers: {'Authorization': 'Bearer $token'},
+        validateStatus: (status) => status! < 500,
+      ),
+      data: PasswordUpdateRequest(password: newPassword).toJson(),
+    );
+
+    if (response.statusCode == 200) {
+      return PasswordUpdateResponse.fromJson(response.data);
+    }
+
+    if (response.statusCode == 404) {
+      throw PasswordUpdateError(
+        'Usuario no encontrado',
+        statusCode: 404,
+      );
+    }
+
+    throw PasswordUpdateError(
+      response.data['detail'] ?? 'Error al actualizar la contraseña',
+      statusCode: response.statusCode,
+    );
+  } on DioException catch (e) {
+    debugPrint('Error DioException: ${e.message}');
+    debugPrint('Response: ${e.response?.data}');
+    throw PasswordUpdateError('Error de red: ${e.message}');
+  }
+}
+
+
+// Future para obtener actas por reunión
+Future<List<ActaDetailResponse>> getActasByReunion(String token, int reunionId) async {
+  try {
+    final response = await _dio.get(
+      '/meeting/actas/reunion/$reunionId',
+      options: Options(
+        headers: {'Authorization': 'Bearer $token'},
+        validateStatus: (status) => status! < 500,
+      ),
+    );
+
+    if (response.statusCode == 200) {
+      final List<dynamic> data = response.data;
+      return data.map((json) => ActaDetailResponse.fromJson(json)).toList();
+    }
+
+    if (response.statusCode == 404) {
+      throw ActaError(
+        'No se encontraron actas para esta reunión',
+        statusCode: 404,
+      );
+    }
+
+    throw ActaError(
+      'Error del servidor: ${response.statusCode}',
+      statusCode: response.statusCode,
+    );
+  } on DioException catch (e) {
+    debugPrint('DioException en getActasByReunion: ${e.message}');
+    throw ActaError('Error de red: ${e.message}');
+  }
+}
+
+// Future para eliminar acta
+Future<DeleteActaResponse> deleteActa(String token, int actaId) async {
+  try {
+    final response = await _dio.delete(
+      '/meeting/actas/$actaId',
+      options: Options(
+        headers: {'Authorization': 'Bearer $token'},
+        validateStatus: (status) => status! < 500,
+      ),
+    );
+
+    if (response.statusCode == 200) {
+      return DeleteActaResponse.fromJson(response.data);
+    }
+
+    if (response.statusCode == 404) {
+      throw ActaError(
+        'Acta no encontrada',
+        statusCode: 404,
+      );
+    }
+
+    throw ActaError(
+      'Error del servidor: ${response.statusCode}',
+      statusCode: response.statusCode,
+    );
+  } on DioException catch (e) {
+    debugPrint('DioException en deleteActa: ${e.message}');
+    throw ActaError('Error de red: ${e.message}');
+  }
+}
+
+
+Future<EnlaceResponse> createEnlace(String token, EnlaceCreate enlace) async {
+  try {
+    final response = await _dio.post(
+      '/url/enlaces/',
+      options: Options(
+        headers: {'Authorization': 'Bearer $token'},
+        validateStatus: (status) => status! < 500,
+      ),
+      data: enlace.toJson(),
+    );
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return EnlaceResponse.fromJson(response.data);
+    }
+
+    throw Exception(
+      response.data['detail'] ?? 'Error al crear enlace',
+    );
+  } on DioException catch (e) {
+    debugPrint('Error al crear enlace: ${e.message}');
+    throw Exception('Error de red: ${e.message}');
+  }
+}
+
+Future<List<EnlaceResponse>> getEnlaces(String token, {int skip = 0, int limit = 100}) async {
+  try {
+    final response = await _dio.get(
+      '/url/enlaces/',
+      options: Options(
+        headers: {'Authorization': 'Bearer $token'},
+        validateStatus: (status) => status! < 500,
+      ),
+      queryParameters: {
+        'skip': skip,
+        'limit': limit,
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final List<dynamic> data = response.data;
+      return data.map((json) => EnlaceResponse.fromJson(json)).toList();
+    }
+
+    throw Exception(
+      response.data['detail'] ?? 'Error al obtener enlaces',
+    );
+  } on DioException catch (e) {
+    debugPrint('Error al obtener enlaces: ${e.message}');
+    throw Exception('Error de red: ${e.message}');
+  }
+}
+
+Future<EnlaceResponse> updateEnlace(
+    String token, int enlaceId, EnlaceUpdate enlace) async {
+  try {
+    final response = await _dio.put(
+      '/url/enlaces/$enlaceId',
+      options: Options(
+        headers: {'Authorization': 'Bearer $token'},
+        validateStatus: (status) => status! < 500,
+      ),
+      data: enlace.toJson(),
+    );
+
+    if (response.statusCode == 200) {
+      return EnlaceResponse.fromJson(response.data);
+    }
+
+    throw Exception(
+      response.data['detail'] ?? 'Error al actualizar enlace',
+    );
+  } on DioException catch (e) {
+    debugPrint('Error al actualizar enlace: ${e.message}');
+    throw Exception('Error de red: ${e.message}');
+  }
+}
+
+Future<bool> deleteEnlace(String token, int enlaceId) async {
+  try {
+    final response = await _dio.delete(
+      '/url/enlaces/$enlaceId',
+      options: Options(
+        headers: {'Authorization': 'Bearer $token'},
+        validateStatus: (status) => status! < 500,
+      ),
+    );
+
+    if (response.statusCode == 200) {
+      return true;
+    }
+
+    throw Exception(
+      response.data['detail'] ?? 'Error al eliminar enlace',
+    );
+  } on DioException catch (e) {
+    debugPrint('Error al eliminar enlace: ${e.message}');
+    throw Exception('Error de red: ${e.message}');
+  }
+}
+
+// URLs
+Future<URLResponse> createURL(String token, URLCreate url) async {
+  try {
+    final response = await _dio.post(
+      '/url/urls/',
+      options: Options(
+        headers: {'Authorization': 'Bearer $token'},
+        validateStatus: (status) => status! < 500,
+      ),
+      data: url.toJson(),
+    );
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return URLResponse.fromJson(response.data);
+    }
+
+    throw Exception(
+      response.data['detail'] ?? 'Error al crear URL',
+    );
+  } on DioException catch (e) {
+    debugPrint('Error al crear URL: ${e.message}');
+    throw Exception('Error de red: ${e.message}');
+  }
+}
+
+Future<URLResponse> updateURL(String token, int urlId, URLUpdate url) async {
+  try {
+    final response = await _dio.put(
+      '/url/urls/$urlId',
+      options: Options(
+        headers: {'Authorization': 'Bearer $token'},
+        validateStatus: (status) => status! < 500,
+      ),
+      data: url.toJson(),
+    );
+
+    if (response.statusCode == 200) {
+      return URLResponse.fromJson(response.data);
+    }
+
+    throw Exception(
+      response.data['detail'] ?? 'Error al actualizar URL',
+    );
+  } on DioException catch (e) {
+    debugPrint('Error al actualizar URL: ${e.message}');
+    throw Exception('Error de red: ${e.message}');
+  }
+}
+
+Future<List<URLListResponse>> getUrls(String token, {int skip = 0, int limit = 100}) async {
+  try {
+    debugPrint('Obteniendo URLs...'); // Log para debug
+    final response = await _dio.get(
+      '/url/urlsList/', // Esta es la ruta correcta que mencionas
+      options: Options(
+        headers: {'Authorization': 'Bearer $token'},
+        validateStatus: (status) => status! < 500,
+      ),
+      queryParameters: {
+        'skip': skip,
+        'limit': limit,
+      },
+    );
+
+    debugPrint('Response status: ${response.statusCode}'); // Log para debug
+    if (response.statusCode == 200) {
+      final List<dynamic> data = response.data;
+      debugPrint('URLs recibidas: ${data.length}'); // Log para debug
+      return data.map((json) => URLListResponse.fromJson(json)).toList();
+    }
+
+    throw Exception(
+      response.data['detail'] ?? 'Error al obtener URLs',
+    );
+  } on DioException catch (e) {
+    debugPrint('Error al obtener URLs: ${e.message}');
+    throw Exception('Error de red: ${e.message}');
+  }
+}
+
+
+// List all cargos
+Future<List<CargoResponse>> listCargos(String token, {int skip = 0, int limit = 100}) async {
+  try {
+    final response = await _dio.get(
+      '/meeting/cargos/',
+      queryParameters: {
+        'skip': skip,
+        'limit': limit,
+      },
+      options: Options(
+        headers: {'Authorization': 'Bearer $token'},
+        validateStatus: (status) => status! < 500,
+      ),
+    );
+
+    if (response.statusCode == 200) {
+      final List<dynamic> data = response.data;
+      return data.map((json) => CargoResponse.fromJson(json)).toList();
+    }
+
+    throw Exception(response.data['detail'] ?? 'Error al listar cargos');
+  } catch (e) {
+    throw Exception('Error de conexión: $e');
+  }
+}
+
+// Create new cargo
+Future<CargoResponse> createCargo(String token, CargoCreate cargo) async {
+  try {
+    final response = await _dio.post(
+      '/meeting/cargos/',
+      options: Options(
+        headers: {'Authorization': 'Bearer $token'},
+        validateStatus: (status) => status! < 500,
+      ),
+      data: cargo.toJson(),
+    );
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return CargoResponse.fromJson(response.data);
+    }
+
+    throw Exception(response.data['detail'] ?? 'Error al crear cargo');
+  } catch (e) {
+    throw Exception('Error de conexión: $e');
+  }
+}
+
+// Update cargo
+Future<CargoResponse> updateCargo(String token, int cargoId, CargoUpdate cargo) async {
+  try {
+    final response = await _dio.put(
+      '/meeting/cargos/$cargoId',
+      options: Options(
+        headers: {'Authorization': 'Bearer $token'},
+        validateStatus: (status) => status! < 500,
+      ),
+      data: cargo.toJson(),
+    );
+
+    if (response.statusCode == 200) {
+      return CargoResponse.fromJson(response.data);
+    }
+
+    throw Exception(response.data['detail'] ?? 'Error al actualizar cargo');
+  } catch (e) {
+    throw Exception('Error de conexión: $e');
+  }
+}
+
+// Delete cargo
+Future<bool> deleteCargo(String token, int cargoId) async {
+  try {
+    final response = await _dio.delete(
+      '/meeting/cargos/$cargoId',
+      options: Options(
+        headers: {'Authorization': 'Bearer $token'},
+        validateStatus: (status) => status! < 500,
+      ),
+    );
+
+    if (response.statusCode == 200) {
+      return true;
+    }
+
+    throw Exception(response.data['detail'] ?? 'Error al eliminar cargo');
+  } catch (e) {
+    throw Exception('Error de conexión: $e'); 
+  }
+}
+
+Future<List<CargoDetailResponse>> getCargoDetails(String token) async {
+  try {
+    final response = await _dio.get(
+      '/meeting/cargos/usuarios/detail',
+      options: Options(
+        headers: {'Authorization': 'Bearer $token'},
+        validateStatus: (status) => status! < 500,
+      ),
+    );
+
+    if (response.statusCode == 200) {
+      final List<dynamic> data = response.data;
+      return data.map((json) => CargoDetailResponse.fromJson(json)).toList();
+    }
+
+    if (response.statusCode == 404) {
+      throw CargoDetailError(
+        'No se encontraron detalles de cargos',
+        statusCode: 404
+      );
+    }
+
+    if (response.statusCode == 401) {
+      throw CargoDetailError(
+        'No autorizado para ver los detalles de cargos',
+        statusCode: 401
+      );
+    }
+
+    throw CargoDetailError(
+      response.data['detail'] ?? 'Error al obtener detalles de cargos',
+      statusCode: response.statusCode
+    );
+  } on DioException catch (e) {
+    debugPrint('DioException en getCargoDetails: ${e.message}');
+    throw CargoDetailError('Error de red: ${e.message}');
+  } catch (e) {
+    debugPrint('Error inesperado en getCargoDetails: $e');
+    throw CargoDetailError('Error inesperado: $e');
+  }
+}
+
+Future<List<UsuarioBasicInfo>> getUsuariosBasicInfo(String token) async {
+  try {
+    final response = await _dio.get(
+      '/complementary/usuarios/basic-info',
+      options: Options(
+        headers: {'Authorization': 'Bearer $token'},
+        validateStatus: (status) => status! < 500,
+      ),
+    );
+
+    if (response.statusCode == 200) {
+      final List<dynamic> data = response.data;
+      return data.map((json) => UsuarioBasicInfo.fromJson(json)).toList();
+    }
+
+    throw Exception(
+      response.data['detail'] ?? 'Error al obtener información básica de usuarios'
+    );
+  } on DioException catch (e) {
+    debugPrint('Error al obtener información básica de usuarios: ${e.message}');
+    throw Exception('Error de red: ${e.message}');
+  }
+}
+
+Future<List<GradoSimpleResponse>> getGradosOrganizacion(String token, String nombreOrganizacion) async {
+  try {
+    final response = await _dio.get(
+      '/meeting/organizacion/grados/$nombreOrganizacion',
+      options: Options(
+        headers: {'Authorization': 'Bearer $token'},
+        validateStatus: (status) => status! < 500,
+      ),
+    );
+
+    if (response.statusCode == 200) {
+      final List<dynamic> data = response.data;
+      return data.map((json) => GradoSimpleResponse.fromJson(json)).toList();
+    }
+
+    throw Exception(
+      response.data['detail'] ?? 'Error al obtener grados de la organización'
+    );
+  } on DioException catch (e) {
+    debugPrint('Error al obtener grados de la organización: ${e.message}');
+    throw Exception('Error de red: ${e.message}');
+  }
+}
+
 }

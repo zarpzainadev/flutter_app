@@ -58,83 +58,95 @@ class CustomDataTable extends StatefulWidget {
 }
 
 class _CustomDataTableState extends State<CustomDataTable> {
-  late ScrollController _verticalController;
-  late ScrollController _horizontalController;
-
-  bool _isMobile(BuildContext context) =>
-      MediaQuery.of(context).size.width < 600;
-
-  @override
-  void initState() {
-    super.initState();
-    _verticalController = ScrollController();
-    _horizontalController = ScrollController();
-  }
+  final ScrollController _verticalController = ScrollController();
+  final ScrollController _horizontalController = ScrollController();
+  final Map<String, DataRow> _rowCache = {};
 
   @override
   void dispose() {
     _verticalController.dispose();
     _horizontalController.dispose();
+    _rowCache.clear();
     super.dispose();
+  }
+
+  DataRow _buildDataRow(Map<String, dynamic> row, double defaultColumnWidth) {
+    // Usar el toString() del row como key para el cache
+    final key = row.toString();
+    if (_rowCache.containsKey(key)) {
+      return _rowCache[key]!;
+    }
+
+    final dataRow = DataRow(
+      cells: [
+        ...widget.columns.map((col) => DataCell(
+          RepaintBoundary(
+            child: SizedBox(
+              width: col.width ?? defaultColumnWidth,
+              child: Tooltip(
+                message: row[col.field]?.toString() ?? '',
+                child: Text(
+                  row[col.field]?.toString() ?? '',
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ),
+          ),
+        )),
+        if (widget.actions.isNotEmpty)
+          DataCell(
+            RepaintBoundary(
+              child: SizedBox(
+                width: widget.actions.length * 48.0,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: widget.actions.map((action) {
+                    return IconButton(
+                      icon: Icon(action.icon),
+                      color: action.getColor?.call(row) ?? action.color,
+                      tooltip: action.getTooltip?.call(row) ?? action.tooltip,
+                      onPressed: () => action.onPressed?.call(row),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+
+    _rowCache[key] = dataRow;
+    return dataRow;
   }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _buildHeader(context),
-          const SizedBox(height: 24),
-          Expanded(
-            child: _buildTableContent(context),
-          ),
-          _buildFooter(context),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHeader(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          widget.title,
-          style: const TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        Row(
-          children: [
-            if (widget.onSearch != null)
-              SizedBox(
-                width: 200,
-                child: TextField(
-                  decoration: const InputDecoration(
-                    hintText: 'Buscar...',
-                    prefixIcon: Icon(Icons.search),
-                  ),
-                  onChanged: widget.onSearch,
-                ),
-              ),
-            ...widget.headerActions,
+    return RepaintBoundary(
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
+            ),
           ],
         ),
-      ],
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            RepaintBoundary(child: _buildHeader(context)),
+            const SizedBox(height: 24),
+            Expanded(
+              child: _buildTableContent(context),
+            ),
+            RepaintBoundary(child: _buildFooter(context)),
+          ],
+        ),
+      ),
     );
   }
 
@@ -142,9 +154,7 @@ class _CustomDataTableState extends State<CustomDataTable> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final availableWidth = constraints.maxWidth;
-        final defaultColumnWidth =
-            (availableWidth - (widget.actions.isEmpty ? 0 : 120)) /
-                widget.columns.length;
+        final defaultColumnWidth = (availableWidth - (widget.actions.isEmpty ? 0 : 120)) / widget.columns.length;
 
         return Scrollbar(
           controller: _verticalController,
@@ -176,22 +186,22 @@ class _CustomDataTableState extends State<CustomDataTable> {
                       horizontalMargin: 24,
                       columns: [
                         ...widget.columns.map((col) => DataColumn(
-                              label: SizedBox(
-                                width: col.width ?? defaultColumnWidth,
-                                child: Text(col.label),
-                              ),
-                            )),
-                        if (widget.actions.isNotEmpty)
-                          DataColumn(
-                            label: SizedBox(
-                              width: widget.actions.length * 48.0,
-                              child: const Text('Acciones'),
+                          label: RepaintBoundary(
+                            child: SizedBox(
+                              width: col.width ?? defaultColumnWidth,
+                              child: Text(col.label),
                             ),
                           ),
+                        )),
+                        if (widget.actions.isNotEmpty)
+                          const DataColumn(
+                            label: Text('Acciones'),
+                          ),
                       ],
-                      rows: widget.data
-                          .map((row) => _buildDataRow(row, defaultColumnWidth))
-                          .toList(),
+                      rows: List.generate(
+                        widget.data.length,
+                        (index) => _buildDataRow(widget.data[index], defaultColumnWidth),
+                      ),
                     ),
                   ),
                 ),
@@ -203,40 +213,33 @@ class _CustomDataTableState extends State<CustomDataTable> {
     );
   }
 
-  DataRow _buildDataRow(Map<String, dynamic> row, double defaultColumnWidth) {
-    return DataRow(
-      cells: [
-        ...widget.columns.map((col) => DataCell(
+  Widget _buildHeader(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          widget.title,
+          style: const TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        Row(
+          children: [
+            if (widget.onSearch != null)
               SizedBox(
-                width: col.width ?? defaultColumnWidth,
-                child: Tooltip(
-                  message: row[col.field]?.toString() ?? '',
-                  child: Text(
-                    row[col.field]?.toString() ?? '',
-                    overflow: TextOverflow.ellipsis,
+                width: 200,
+                child: TextField(
+                  decoration: const InputDecoration(
+                    hintText: 'Buscar...',
+                    prefixIcon: Icon(Icons.search),
                   ),
+                  onChanged: widget.onSearch,
                 ),
               ),
-            )),
-        if (widget.actions.isNotEmpty)
-          DataCell(
-            SizedBox(
-              width: widget.actions.length * 48.0,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: widget.actions
-                    .map(
-                      (action) => IconButton(
-                        icon: Icon(action.icon),
-                        color: action.getColor?.call(row) ?? action.color,
-                        tooltip: action.getTooltip?.call(row) ?? action.tooltip,
-                        onPressed: () => action.onPressed?.call(row),
-                      ),
-                    )
-                    .toList(),
-              ),
-            ),
-          ),
+            ...widget.headerActions,
+          ],
+        ),
       ],
     );
   }

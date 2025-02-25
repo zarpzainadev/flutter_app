@@ -13,6 +13,18 @@ class StorageService {
     _prefs = await SharedPreferences.getInstance();
   }
 
+  // En storage_services.dart
+
+static Future<void> saveOrganizacionDescripcion(String descripcion) async {
+  if (_prefs == null) await init();
+  await _prefs!.setString('organizacion_descripcion', descripcion);
+}
+
+static Future<String?> getOrganizacionDescripcion() async {
+  if (_prefs == null) await init();
+  return _prefs!.getString('organizacion_descripcion');
+}
+
   // Guardar el token
   static Future<bool> saveToken(Token token) async {
     if (_prefs == null) await init();
@@ -87,4 +99,7 @@ class StorageService {
       return true; // Si hay error, consideramos que expiró
     }
   }
+
+  
+
 }

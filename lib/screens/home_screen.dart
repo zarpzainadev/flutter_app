@@ -11,6 +11,7 @@ import 'package:flutter_web_android/screens/Profile/profile_viewmodel.dart';
 import 'package:flutter_web_android/screens/Users/user_details/user_detail_screen.dart';
 import 'package:flutter_web_android/screens/calendar/calendar_screen.dart';
 import 'package:flutter_web_android/screens/home_screen_view_model.dart';
+import 'package:flutter_web_android/storage/storage_services.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_web_android/components/sidebar.dart';
 import '../theme/theme_provider.dart';
@@ -25,6 +26,7 @@ class HomeScreen extends StatefulWidget {
 class HomeScreenState extends State<HomeScreen> {
   bool isRedTheme = true;
   bool showMeetingModal = true;
+  String _organizacionDescripcion = '';
   Widget _currentScreen = CalendarScreen(
     meetings: const [],
     onMeetingTap: (MeetingListResponse meeting) {
@@ -39,6 +41,7 @@ class HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    _loadOrganizacionDescripcion();
     _viewModel = HomeScreenViewModel();
     _loadUserAllowedGroups();
     _viewModel.fetchNextMeeting();
@@ -113,40 +116,23 @@ class HomeScreenState extends State<HomeScreen> {
   void _hideMeetingModal() => setState(() => showMeetingModal = false);
 
   PreferredSizeWidget _buildAppBar() {
-    return AppBar(
-      backgroundColor: Colors.white,
-      elevation: 0,
-      leading: IconButton(
-        icon: const Icon(Icons.menu),
-        onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+  return AppBar(
+    backgroundColor: Colors.white,
+    elevation: 0,
+    leading: IconButton(
+      icon: const Icon(Icons.menu),
+      onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+    ),
+    actions: [
+      // Ahora solo el botón de logout
+      IconButton(
+        icon: const Icon(Icons.logout),
+        tooltip: 'Cerrar Sesión',
+        onPressed: () => _handleLogout(context),
       ),
-      actions: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8.0),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('Tema oscuro', style: TextStyle(fontSize: 14)),
-              Switch(
-                value: isRedTheme,
-                onChanged: (value) {
-                  setState(() {
-                    isRedTheme = value;
-                    AppTheme.switchTheme(context, isRedTheme);
-                  });
-                },
-              ),
-              IconButton(
-                icon: const Icon(Icons.logout),
-                tooltip: 'Cerrar Sesión',
-                onPressed: () => _handleLogout(context),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
+    ],
+  );
+}
 
   Widget _buildMainContent() {
     return Theme(
@@ -184,42 +170,77 @@ class HomeScreenState extends State<HomeScreen> {
                 ],
               ),
               if (showMeetingModal)
-                MeetingModalOverlay(
-                  onDismiss: _hideMeetingModal,
-                  child: Consumer<HomeScreenViewModel>(
-                    builder: (context, viewModel, _) {
-                      if (viewModel.isLoading) {
-                        return const MeetingReminderCard(
-                          date: 'Cargando...',
-                          place: 'Cargando...',
-                          agenda: ['Cargando agenda...'],
-                        );
-                      }
-
+  MeetingModalOverlay(
+    onDismiss: _hideMeetingModal,
+    child: Consumer<HomeScreenViewModel>(
+      builder: (context, viewModel, _) {
+        if (viewModel.isLoading) {
+          return MeetingReminderCard(
+            date: 'Cargando...',
+            place: 'Cargando...',
+            agenda: {
+              'ops': [
+                {
+                  'insert': 'Cargando agenda...\n',
+                  'attributes': {
+                    'italic': true,
+                    'color': '#666666'
+                  }
+                }
+              ]
+            },
+          );
+        }
                       if (viewModel.hasNoMeetings) {
-                        return const MeetingReminderCard(
-                          date: 'No hay reuniones programadas',
-                          place: 'Sin lugar asignado',
-                          agenda: ['No hay reuniones programadas actualmente'],
-                        );
-                      }
+          return MeetingReminderCard(
+            date: 'No hay reuniones programadas',
+            place: 'Sin lugar asignado',
+            agenda: {
+              'ops': [
+                {
+                  'insert': 'No hay reuniones programadas actualmente\n',
+                  'attributes': {
+                    'italic': true,
+                    'color': '#666666'
+                  }
+                }
+              ]
+            },
+          );
+        }
 
                       if (viewModel.errorMessage != null) {
-                        return MeetingReminderCard(
-                          date: 'Error',
-                          place: 'Error',
-                          agenda: [
-                            viewModel.errorMessage ?? 'Error desconocido'
-                          ],
-                        );
-                      }
+          return MeetingReminderCard(
+            date: 'Error',
+            place: 'Error',
+            agenda: {
+              'ops': [
+                {
+                  'insert': '${viewModel.errorMessage ?? "Error desconocido"}\n',
+                  'attributes': {
+                    'color': '#FF0000'
+                  }
+                }
+              ]
+            },
+          );
+        }
 
                       return MeetingReminderCard(
-                        date: viewModel.getFormattedDate(),
-                        place:
-                            viewModel.meeting?.lugar ?? 'Lugar no especificado',
-                        agenda: viewModel.getAgendaItems(),
-                      );
+          date: viewModel.getFormattedDate(),
+          place: viewModel.nextMeeting?.lugar ?? 'Lugar no especificado',
+          agenda: viewModel.nextMeeting?.agenda ?? {
+            'ops': [
+              {
+                'insert': 'Sin agenda\n',
+                'attributes': {
+                  'italic': true,
+                  'color': '#666666'
+                }
+              }
+            ]
+          },
+        );
                     },
                   ),
                 ),
@@ -235,6 +256,7 @@ class HomeScreenState extends State<HomeScreen> {
       onSelectScreen: changeScreen,
       allowedGroups: userAllowedGroups,
       onLogout: _handleLogout,
+      organizacionDescripcion: _organizacionDescripcion,
     );
   }
 
@@ -243,11 +265,10 @@ class HomeScreenState extends State<HomeScreen> {
     Widget content = SessionTimeoutWrapper(
       onSessionTimeout: () => _viewModel.logout(context),
       child: MultiProvider(
-        // Cambiar a MultiProvider
         providers: [
           ChangeNotifierProvider.value(value: _viewModel),
           ChangeNotifierProvider(
-              create: (_) => ProfileViewModel()), // Agregar ProfileViewModel
+              create: (_) => ProfileViewModel()),
         ],
         child: _buildMainContent(),
       ),
@@ -269,4 +290,22 @@ class HomeScreenState extends State<HomeScreen> {
     _viewModel.dispose();
     super.dispose();
   }
+
+  Future<void> _loadOrganizacionDescripcion() async {
+  try {
+    final descripcion = await StorageService.getOrganizacionDescripcion();
+    if (mounted) {
+      setState(() {
+        _organizacionDescripcion = descripcion ?? 'Aqumex';
+      });
+    }
+  } catch (e) {
+    debugPrint('Error al cargar descripción de organización: $e');
+    if (mounted) {
+      setState(() {
+        _organizacionDescripcion = 'Aqumex';
+      });
+    }
+  }
+}
 }

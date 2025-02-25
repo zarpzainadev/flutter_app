@@ -126,6 +126,15 @@ class ListUserScreen extends StatelessWidget {
                                       },
                                     ),
                                   ),
+                                  UserAction(
+    icon: Icons.password,
+    color: Colors.purple,
+    tooltip: 'Cambiar Contraseña',
+    onPressed: (user) => viewModel.showChangePasswordModal(
+      context,
+      {'id': user.id},
+    ),
+  ),
                                 ],
                               )
                             : CustomDataTable(

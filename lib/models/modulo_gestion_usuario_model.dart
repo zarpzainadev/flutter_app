@@ -38,36 +38,22 @@ class User {
 @JsonSerializable()
 class GradoOut {
   final int? id;
-  final String? grado;
-  final String? abrev_grado;
+  final int? id_grado;
   final DateTime? fecha_grado;
   final String? estado;
   final DateTime? fecha;
+  final String? nombre_grado;  // Cambiado de grado a nombre_grado
 
   GradoOut({
     this.id,
-    this.grado,
-    this.abrev_grado,
+    this.id_grado,
     this.fecha_grado,
     this.estado,
     this.fecha,
+    this.nombre_grado,
   });
 
-  factory GradoOut.fromJson(Map<String, dynamic> json) {
-    return GradoOut(
-      id: json['id'] as int?,
-      grado: json['grado'] as String?,
-      abrev_grado: json['abrev_grado'] as String?,
-      fecha_grado: json['fecha_grado'] == null
-          ? null
-          : DateTime.parse(json['fecha_grado'] as String),
-      estado: json['estado'] as String?,
-      fecha: json['fecha'] == null
-          ? null
-          : DateTime.parse(json['fecha'] as String),
-    );
-  }
-
+  factory GradoOut.fromJson(Map<String, dynamic> json) => _$GradoOutFromJson(json);
   Map<String, dynamic> toJson() => _$GradoOutToJson(this);
 }
 
@@ -677,49 +663,56 @@ class DocumentError {
 class MeetingCreate {
   final DateTime fecha;
   final String lugar;
-  final String agenda;
+  final Map<String, dynamic> agenda;
+  final String cabecera_invitacion; 
 
   MeetingCreate({
     required this.fecha,
     required this.lugar,
     required this.agenda,
+    required this.cabecera_invitacion, 
   });
 
   Map<String, dynamic> toJson() => {
         'fecha': fecha.toIso8601String(),
         'lugar': lugar,
         'agenda': agenda,
+        'cabecera_invitacion': cabecera_invitacion,
       };
 }
 
 class MeetingUpdate {
   final DateTime? fecha;
   final String? lugar;
-  final String? agenda;
+  final Map<String, dynamic>? agenda;
   final String? estado;
+  final String? cabecera_invitacion;
 
   MeetingUpdate({
     this.fecha,
     this.lugar,
     this.agenda,
     this.estado,
+    this.cabecera_invitacion,
   });
 
   Map<String, dynamic> toJson() => {
-        if (fecha != null) 'fecha': fecha!.toIso8601String(),
-        if (lugar != null) 'lugar': lugar,
-        if (agenda != null) 'agenda': agenda,
-        if (estado != null) 'estado': estado,
-      };
+    if (fecha != null) 'fecha': fecha!.toIso8601String(),
+    if (lugar != null) 'lugar': lugar,
+    if (agenda != null) 'agenda': agenda,
+    if (estado != null) 'estado': estado,
+    if (cabecera_invitacion != null) 'cabecera_invitacion': cabecera_invitacion,
+  };
 }
 
 class MeetingResponse {
   final int id;
   final DateTime fecha;
   final String lugar;
-  final String agenda; // Faltaba este campo
-  final String estado; // Era 'publicada' como bool, pero viene como string
+  final Map<String, dynamic> agenda; // Cambiar de String a Map
+  final String estado;
   final int creador_id;
+  final String cabecera_invitacion;
 
   MeetingResponse({
     required this.id,
@@ -728,6 +721,7 @@ class MeetingResponse {
     required this.agenda,
     required this.estado,
     required this.creador_id,
+    required this.cabecera_invitacion,
   });
 
   factory MeetingResponse.fromJson(Map<String, dynamic> json) {
@@ -735,23 +729,33 @@ class MeetingResponse {
       id: json['id'] as int,
       fecha: DateTime.parse(json['fecha'] as String),
       lugar: json['lugar'] as String,
-      agenda: json['agenda'] as String,
+      agenda: json['agenda'] as Map<String, dynamic>, // Cambiar aquí también
       estado: json['estado'] as String,
       creador_id: json['creador_id'] as int,
+      cabecera_invitacion: json['cabecera_invitacion'] as String? ?? '',
     );
   }
 
-  bool get publicada => estado == 'Publicada';
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'fecha': fecha.toIso8601String(),
+    'lugar': lugar,
+    'agenda': agenda,
+    'estado': estado,
+    'creador_id': creador_id,
+    'cabecera_invitacion': cabecera_invitacion,
+  };
 }
 
 class MeetingListResponse {
   final int id;
   final DateTime fecha;
   final String lugar;
-  final String agenda;
+  final Map<String, dynamic> agenda;
   final String estado;
   final int creador_id;
-  final bool tiene_asistencia; // Nuevo campo
+  final bool tiene_asistencia;
+  final String cabecera_invitacion;
 
   MeetingListResponse({
     required this.id,
@@ -761,6 +765,7 @@ class MeetingListResponse {
     required this.estado,
     required this.creador_id,
     required this.tiene_asistencia,
+    required this.cabecera_invitacion,
   });
 
   factory MeetingListResponse.fromJson(Map<String, dynamic> json) {
@@ -768,10 +773,11 @@ class MeetingListResponse {
       id: json['id'] as int,
       fecha: DateTime.parse(json['fecha'] as String),
       lugar: json['lugar'] as String,
-      agenda: json['agenda'] as String,
+      agenda: json['agenda'] as Map<String, dynamic>, 
       estado: json['estado'] as String,
       creador_id: json['creador_id'] as int,
       tiene_asistencia: json['tiene_asistencia'] as bool? ?? false,
+      cabecera_invitacion: json['cabecera_invitacion'] as String? ?? '',
     );
   }
 
@@ -1190,21 +1196,21 @@ enum TipoGrado {
 }
 
 class GradoCreate {
-  final int usuarioId;
-  final TipoGrado grado;
-  final String abrevGrado;
+  final int usuario_id;
+  final int id_grado;
+  final String estado;
 
   GradoCreate({
-    required this.usuarioId,
-    required this.grado,
-    required this.abrevGrado,
+    required this.usuario_id,
+    required this.id_grado,
+    this.estado = 'Activo',
   });
 
   Map<String, dynamic> toJson() => {
-        'usuario_id': usuarioId,
-        'grado': grado.toBackendString(), // Usar el nuevo método
-        'abrev_grado': abrevGrado,
-      };
+    'usuario_id': usuario_id,
+    'id_grado': id_grado,
+    'estado': estado,
+  };
 }
 
 class GradoError implements Exception {
@@ -1218,18 +1224,18 @@ class GradoError implements Exception {
 }
 
 class GradoUpdate {
-  final TipoGrado grado;
-  final String abrevGrado;
+  final int id_grado;
+  final String? estado;
 
   GradoUpdate({
-    required this.grado,
-    required this.abrevGrado,
+    required this.id_grado,
+    this.estado,
   });
 
   Map<String, dynamic> toJson() => {
-        'grado': grado.toBackendString(), // Usar el nuevo método
-        'abrev_grado': abrevGrado,
-      };
+    'id_grado': id_grado,
+    if (estado != null) 'estado': estado,
+  };
 }
 
 // Agregamos también el enum para estado de grado
@@ -1276,4 +1282,489 @@ class FotoInvitacionError implements Exception {
 
   @override
   String toString() => message;
+}
+
+
+class NewOrganizacionResponse {
+  final String descripcion;
+  final String numero;
+  final String grupo;  // Cambio aquí: ahora es String en lugar de NewGrupoTipo
+
+  NewOrganizacionResponse({
+    required this.descripcion,
+    required this.numero,
+    required this.grupo,
+  });
+
+  factory NewOrganizacionResponse.fromJson(Map<String, dynamic> json) {
+    return NewOrganizacionResponse(
+      descripcion: json['descripcion'] as String,
+      numero: json['numero'] as String,
+      grupo: json['grupo'] as String,  // Cambio aquí
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'descripcion': descripcion,
+    'numero': numero,
+    'grupo': grupo,
+  };
+}
+
+class NewGrupoTipo {
+  final String nombre;
+
+  NewGrupoTipo({required this.nombre});
+
+  factory NewGrupoTipo.fromJson(Map<String, dynamic> json) {
+    return NewGrupoTipo(
+      nombre: json['nombre'] as String,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {'nombre': nombre};
+}
+class NewOrganizacionError implements Exception {
+  final String message;
+  final int? statusCode;
+
+  NewOrganizacionError(this.message, {this.statusCode});
+
+  @override
+  String toString() => message;
+}
+
+
+class PasswordUpdateRequest {
+  final String password;
+
+  PasswordUpdateRequest({required this.password});
+
+  Map<String, dynamic> toJson() => {
+    'password': password,
+  };
+}
+
+class PasswordUpdateResponse {
+  final String message;
+
+  PasswordUpdateResponse({
+    required this.message,
+  });
+
+  factory PasswordUpdateResponse.fromJson(Map<String, dynamic> json) {
+    return PasswordUpdateResponse(
+      message: json['message'] as String,
+    );
+  }
+}
+
+class PasswordUpdateError implements Exception {
+  final String message;
+  final int? statusCode;
+
+  PasswordUpdateError(this.message, {this.statusCode});
+
+  @override
+  String toString() => message;
+}
+
+
+// Modelo para listar actas por reunión
+class ActaDetailResponse {
+  final int id;
+  final int reunionId;
+  final DateTime fechaSubida;
+  final String estado;
+
+  ActaDetailResponse({
+    required this.id,
+    required this.reunionId,
+    required this.fechaSubida,
+    required this.estado,
+  });
+
+  factory ActaDetailResponse.fromJson(Map<String, dynamic> json) {
+    return ActaDetailResponse(
+      id: json['id'] as int,
+      reunionId: json['reunion_id'] as int,
+      fechaSubida: DateTime.parse(json['fecha_subida']),
+      estado: json['estado'] as String,
+    );
+  }
+}
+
+// Modelo para respuesta de eliminación de acta
+class DeleteActaResponse {
+  final String message;
+
+  DeleteActaResponse({required this.message});
+
+  factory DeleteActaResponse.fromJson(Map<String, dynamic> json) {
+    return DeleteActaResponse(
+      message: json['message'] as String,
+    );
+  }
+}
+
+
+class EnlaceBase {
+  final String nombre;
+  final String? descripcion;
+
+  EnlaceBase({
+    required this.nombre,
+    this.descripcion,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'nombre': nombre,
+    if (descripcion != null) 'descripcion': descripcion,
+  };
+}
+
+class EnlaceCreate extends EnlaceBase {
+  EnlaceCreate({
+    required String nombre,
+    String? descripcion,
+  }) : super(nombre: nombre, descripcion: descripcion);
+}
+
+class EnlaceUpdate {
+  final String? nombre;
+  final String? descripcion;
+  final bool? estado;
+
+  EnlaceUpdate({
+    this.nombre,
+    this.descripcion,
+    this.estado,
+  });
+
+  Map<String, dynamic> toJson() => {
+    if (nombre != null) 'nombre': nombre,
+    if (descripcion != null) 'descripcion': descripcion,
+    if (estado != null) 'estado': estado,
+  };
+}
+
+class EnlaceResponse extends EnlaceBase {
+  final int id;
+  final bool estado;
+
+  EnlaceResponse({
+    required this.id,
+    required String nombre,
+    String? descripcion,
+    required this.estado,
+  }) : super(nombre: nombre, descripcion: descripcion);
+
+  factory EnlaceResponse.fromJson(Map<String, dynamic> json) {
+    return EnlaceResponse(
+      id: json['id'] as int,
+      nombre: json['nombre'] as String,
+      descripcion: json['descripcion'] as String?,
+      estado: json['estado'] as bool,
+    );
+  }
+}
+
+// Modelos para URLs
+class URLBase {
+  final String url;
+  final int enlaceId;
+
+  URLBase({
+    required this.url,
+    required this.enlaceId,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'url': url,
+    'enlace_id': enlaceId,
+  };
+}
+
+class URLCreate extends URLBase {
+  URLCreate({
+    required String url,
+    required int enlaceId,
+  }) : super(url: url, enlaceId: enlaceId);
+}
+
+class URLUpdate {
+  final String? url;
+  final bool? estado;
+
+  URLUpdate({
+    this.url,
+    this.estado,
+  });
+
+  Map<String, dynamic> toJson() => {
+    if (url != null) 'url': url,
+    if (estado != null) 'estado': estado,
+  };
+}
+
+class URLResponse extends URLBase {
+  final int id;
+  final DateTime fechaCreacion;
+  final bool estado;
+
+  URLResponse({
+    required this.id,
+    required String url,
+    required int enlaceId,
+    required this.fechaCreacion,
+    required this.estado,
+  }) : super(url: url, enlaceId: enlaceId);
+
+  factory URLResponse.fromJson(Map<String, dynamic> json) {
+    return URLResponse(
+      id: json['id'] as int,
+      url: json['url'] as String,
+      enlaceId: json['enlace_id'] as int,
+      fechaCreacion: DateTime.parse(json['fecha_creacion']),
+      estado: json['estado'] as bool,
+    );
+  }
+}
+
+class URLListResponse extends URLBase {
+  final int id;
+  final String enlaceNombre;
+  final DateTime fechaCreacion;
+  final bool estado;
+
+  URLListResponse({
+    required this.id,
+    required String url,
+    required int enlaceId,
+    required this.enlaceNombre,
+    required this.fechaCreacion,
+    required this.estado,
+  }) : super(url: url, enlaceId: enlaceId);
+
+  factory URLListResponse.fromJson(Map<String, dynamic> json) {
+    return URLListResponse(
+      id: json['id'] as int,
+      url: json['url'] as String,
+      enlaceId: json['enlace_id'] as int,
+      enlaceNombre: json['enlace_nombre'] as String,
+      fechaCreacion: DateTime.parse(json['fecha_creacion']),
+      estado: json['estado'] as bool,
+    );
+  }
+}
+
+
+class ContenidoTrabajoResponse {
+  final int id;
+  final int trabajoId;
+  final String nombreArchivo;
+  final String tipoMime;
+  final DateTime fechaSubida;
+
+  ContenidoTrabajoResponse({
+    required this.id,
+    required this.trabajoId,
+    required this.nombreArchivo,
+    required this.tipoMime,
+    required this.fechaSubida,
+  });
+
+  factory ContenidoTrabajoResponse.fromJson(Map<String, dynamic> json) {
+    return ContenidoTrabajoResponse(
+      id: json['id'] as int,
+      trabajoId: json['trabajo_id'] as int,
+      nombreArchivo: json['nombre_archivo'] as String,
+      tipoMime: json['tipo_mime'] as String,
+      fechaSubida: DateTime.parse(json['fecha_subida']),
+    );
+  }
+}
+
+// Modelo de error específico
+class ContenidoTrabajoError implements Exception {
+  final String message;
+  final int? statusCode;
+
+  ContenidoTrabajoError(this.message, {this.statusCode});
+
+  @override
+  String toString() => message;
+}
+
+
+// Cargo models
+class CargoBase {
+  final int idOrganizacion;
+  final int idUsuario; 
+  final String abreviatura;
+  final String cargoNombre; 
+
+  CargoBase({
+    required this.idOrganizacion,
+    required this.idUsuario,
+    required this.abreviatura,
+    required this.cargoNombre, 
+  });
+
+  Map<String, dynamic> toJson() => {
+    'id_organizacion': idOrganizacion,
+    'id_usuario': idUsuario,
+    'abreviatura': abreviatura,
+    'cargo_nombre': cargoNombre, 
+  };
+}
+
+class CargoCreate extends CargoBase {
+  CargoCreate({
+    required int idOrganizacion,
+    required int idUsuario,
+    required String abreviatura,
+    required String cargoNombre, 
+  }) : super(
+    idOrganizacion: idOrganizacion, 
+    idUsuario: idUsuario,
+    abreviatura: abreviatura,
+    cargoNombre: cargoNombre, 
+  );
+}
+
+class CargoUpdate {
+  final int? idOrganizacion;
+  final int? idUsuario;
+  final String? abreviatura;
+  final String? cargoNombre;
+
+  CargoUpdate({
+    this.idOrganizacion,
+    this.idUsuario,
+    this.abreviatura,
+    this.cargoNombre, 
+  });
+
+  Map<String, dynamic> toJson() => {
+    if (idOrganizacion != null) 'id_organizacion': idOrganizacion,
+    if (idUsuario != null) 'id_usuario': idUsuario,
+    if (abreviatura != null) 'abreviatura': abreviatura,
+    if (cargoNombre != null) 'cargo_nombre': cargoNombre, 
+  };
+}
+
+class CargoResponse {
+  final int id;
+  final int idOrganizacion;
+  final int idUsuario;
+  final String abreviatura;
+  final String cargoNombre; 
+  final String nombreUsuario;
+  final String nombreOrganizacion;
+
+  CargoResponse({
+    required this.id,
+    required this.idOrganizacion,
+    required this.idUsuario,
+    required this.abreviatura,
+    required this.cargoNombre, 
+    required this.nombreUsuario,
+    required this.nombreOrganizacion,
+  });
+
+  factory CargoResponse.fromJson(Map<String, dynamic> json) {
+    return CargoResponse(
+      id: json['id'],
+      idOrganizacion: json['id_organizacion'],
+      idUsuario: json['id_usuario'],
+      abreviatura: json['abreviatura'],
+      cargoNombre: json['cargo_nombre'], 
+      nombreUsuario: json['nombre_usuario'],
+      nombreOrganizacion: json['nombre_organizacion'],
+    );
+  }
+}
+
+class CargoDetailResponse {
+  final String cargoNombre;
+  final String abreviatura; 
+  final int idUsuario;
+  final String usuarioNombre;
+  final String usuarioEmail;
+  final String usuarioCelular;
+
+  CargoDetailResponse({
+    required this.cargoNombre,
+    required this.abreviatura,
+    required this.idUsuario,
+    required this.usuarioNombre,
+    required this.usuarioEmail,
+    required this.usuarioCelular,
+  });
+
+  factory CargoDetailResponse.fromJson(Map<String, dynamic> json) {
+    return CargoDetailResponse(
+      cargoNombre: json['cargo_nombre'] as String,
+      abreviatura: json['abreviatura'] as String,
+      idUsuario: json['id_usuario'] as int, // Añadido al fromJson
+      usuarioNombre: json['usuario_nombre'] as String,
+      usuarioEmail: json['usuario_email'] as String,
+      usuarioCelular: json['usuario_celular'] as String,
+    );
+  }
+}
+
+// Modelo de error específico
+class CargoDetailError implements Exception {
+  final String message;
+  final int? statusCode;
+
+  CargoDetailError(this.message, {this.statusCode});
+
+  @override
+  String toString() => message;
+}
+
+
+
+class UsuarioBasicInfo {
+  final int id;
+  final String nombres;
+  final String apellidosPaterno;
+  final String apellidosMaterno;
+
+  UsuarioBasicInfo({
+    required this.id,
+    required this.nombres,
+    required this.apellidosPaterno,
+    required this.apellidosMaterno,
+  });
+
+  factory UsuarioBasicInfo.fromJson(Map<String, dynamic> json) {
+    return UsuarioBasicInfo(
+      id: json['id'] as int,
+      nombres: json['nombres'] as String,
+      apellidosPaterno: json['apellidos_paterno'] as String,
+      apellidosMaterno: json['apellidos_materno'] as String,
+    );
+  }
+}
+
+// Agregar con los otros modelos
+class GradoSimpleResponse {
+  final int id;
+  final String nombre;
+
+  GradoSimpleResponse({
+    required this.id,
+    required this.nombre,
+  });
+
+  factory GradoSimpleResponse.fromJson(Map<String, dynamic> json) {
+    return GradoSimpleResponse(
+      id: json['id'] as int,
+      nombre: json['nombre'] as String,
+    );
+  }
 }

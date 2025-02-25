@@ -1,16 +1,21 @@
 // create_meeting_modal.dart
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-
-// En update_meeting_modal.dart
-
-// En update_meeting_modal.dart
+import 'package:flutter_quill/flutter_quill.dart';
+import 'dart:convert';
 
 Future<Map<String, dynamic>?> showUpdateMeetingModal(
     BuildContext context, Map<String, dynamic> meeting) {
   final formKey = GlobalKey<FormState>();
-  final agendaController = TextEditingController(text: meeting['descripcion']);
+  final tituloController = TextEditingController(text: meeting['titulo']); 
   final lugarController = TextEditingController(text: meeting['lugar']);
+  
+  // Inicializar QuillController con el contenido existente
+  final agendaController = QuillController(
+  document: Document.fromJson(meeting['descripcion']['ops']), // Acceder a 'ops' directamente
+  selection: const TextSelection.collapsed(offset: 0),
+  readOnly: false,
+);
 
   DateTime selectedDateTime;
   try {
@@ -65,25 +70,62 @@ Future<Map<String, dynamic>?> showUpdateMeetingModal(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           TextFormField(
-                            controller: agendaController,
+                            controller: tituloController,
                             decoration: InputDecoration(
-                              labelText: 'Agenda',
+                              labelText: 'Título',
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               focusedBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(8),
-                                borderSide:
-                                    BorderSide(color: primaryColor, width: 2),
+                                borderSide: BorderSide(color: primaryColor, width: 2),
                               ),
                             ),
-                            maxLines: 3,
                             validator: (value) {
                               if (value == null || value.isEmpty) {
-                                return 'Por favor ingrese la agenda';
+                                return 'Por favor ingrese un título';
                               }
                               return null;
                             },
+                          ),
+                          const SizedBox(height: 16),
+                          Container(
+                            height: 200,
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Column(
+                              children: [
+                                QuillToolbar.simple(
+                                  configurations: QuillSimpleToolbarConfigurations(
+                                    controller: agendaController,
+                                    showFontFamily: false,
+                                    showSearchButton: false,
+                                    showRedo: false,
+                                    showUndo: false,
+                                    multiRowsDisplay: false,
+                                  ),
+                                ),
+                                Expanded(
+                                  child: Container(
+                                    padding: const EdgeInsets.all(8),
+                                    child: QuillEditor(
+                                      configurations: QuillEditorConfigurations(
+                                        controller: agendaController,
+                                        padding: const EdgeInsets.all(0),
+                                        scrollable: true,
+                                        autoFocus: false,
+                                        expands: false,
+                                        placeholder: 'Escribe la agenda aquí...',
+                                      ),
+                                      focusNode: FocusNode(),
+                                      scrollController: ScrollController(),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                           const SizedBox(height: 16),
                           TextFormField(
@@ -95,8 +137,7 @@ Future<Map<String, dynamic>?> showUpdateMeetingModal(
                               ),
                               focusedBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(8),
-                                borderSide:
-                                    BorderSide(color: primaryColor, width: 2),
+                                borderSide: BorderSide(color: primaryColor, width: 2),
                               ),
                             ),
                             validator: (value) {
@@ -116,8 +157,7 @@ Future<Map<String, dynamic>?> showUpdateMeetingModal(
                               ),
                               focusedBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(8),
-                                borderSide:
-                                    BorderSide(color: primaryColor, width: 2),
+                                borderSide: BorderSide(color: primaryColor, width: 2),
                               ),
                             ),
                             items: ['Borrador', 'Publicada', 'Inactiva']
@@ -139,7 +179,9 @@ Future<Map<String, dynamic>?> showUpdateMeetingModal(
                           Text(
                             'Fecha y hora seleccionada:',
                             style: const TextStyle(
-                                fontSize: 16, fontWeight: FontWeight.bold),
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold
+                            ),
                           ),
                           Text(
                             '${DateFormat('dd/MM/yyyy').format(selectedDateTime)} ${selectedTime.format(context)}',
@@ -152,13 +194,11 @@ Future<Map<String, dynamic>?> showUpdateMeetingModal(
                                 child: ElevatedButton.icon(
                                   onPressed: () async {
                                     final now = DateTime.now();
-                                    final DateTime? picked =
-                                        await showDatePicker(
+                                    final DateTime? picked = await showDatePicker(
                                       context: context,
-                                      initialDate:
-                                          selectedDateTime.isBefore(now)
-                                              ? now
-                                              : selectedDateTime,
+                                      initialDate: selectedDateTime.isBefore(now)
+                                          ? now
+                                          : selectedDateTime,
                                       firstDate: now,
                                       lastDate: DateTime(2101),
                                       builder: (context, child) {
@@ -196,8 +236,7 @@ Future<Map<String, dynamic>?> showUpdateMeetingModal(
                               Expanded(
                                 child: ElevatedButton.icon(
                                   onPressed: () async {
-                                    final TimeOfDay? picked =
-                                        await showTimePicker(
+                                    final TimeOfDay? picked = await showTimePicker(
                                       context: context,
                                       initialTime: selectedTime,
                                       builder: (context, child) {
@@ -248,16 +287,21 @@ Future<Map<String, dynamic>?> showUpdateMeetingModal(
                               const SizedBox(width: 16),
                               ElevatedButton(
                                 onPressed: () {
-                                  if (formKey.currentState!.validate()) {
-                                    Navigator.pop(context, {
-                                      'id': meeting['id'],
-                                      'agenda': agendaController.text,
-                                      'lugar': lugarController.text,
-                                      'fecha': selectedDateTime,
-                                      'estado': selectedEstado,
-                                    });
-                                  }
-                                },
+  if (formKey.currentState!.validate()) {
+    final agendaData = agendaController.document.toDelta().toJson();
+    
+    Navigator.pop(context, {
+      'id': meeting['id'],
+      'titulo': tituloController.text,
+      'agenda': {
+        'ops': agendaData
+      }, // NO usar jsonEncode aquí
+      'lugar': lugarController.text,
+      'fecha': selectedDateTime,
+      'estado': selectedEstado,
+    });
+  }
+},
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: primaryColor,
                                   foregroundColor: Colors.white,

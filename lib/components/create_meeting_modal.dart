@@ -1,20 +1,21 @@
-// Crear create_meeting_modal.dart:
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter_quill/flutter_quill.dart';
+import 'dart:convert';
 
-// En create_meeting_modal.dart
 Future<Map<String, dynamic>?> showCreateMeetingModal(BuildContext context) {
   final formKey = GlobalKey<FormState>();
-  final agendaController = TextEditingController();
+  final tituloController = TextEditingController();
   final lugarController = TextEditingController();
+  final agendaController = QuillController(
+    document: Document(), 
+    selection: const TextSelection.collapsed(offset: 0),
+    readOnly: false,
+  );
 
-  // Set initial time to a reasonable default like 9:00 AM
   DateTime selectedDateTime = DateTime.now().copyWith(hour: 9, minute: 0);
   TimeOfDay selectedTime = TimeOfDay(hour: 9, minute: 0);
-
-  // For UI updates
   final dateTimeNotifier = ValueNotifier<DateTime>(selectedDateTime);
-
   final primaryColor = const Color(0xFF1E3A8A);
 
   return showDialog<Map<String, dynamic>>(
@@ -47,25 +48,63 @@ Future<Map<String, dynamic>?> showCreateMeetingModal(BuildContext context) {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       TextFormField(
-                        controller: agendaController,
+                        controller: tituloController,
                         decoration: InputDecoration(
-                          labelText: 'Agenda',
+                          labelText: 'Título',
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(8),
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(8),
-                            borderSide:
-                                BorderSide(color: primaryColor, width: 2),
+                            borderSide: BorderSide(color: primaryColor, width: 2),
                           ),
                         ),
-                        maxLines: 3,
                         validator: (value) {
                           if (value == null || value.isEmpty) {
-                            return 'Por favor ingrese la agenda';
+                            return 'Por favor ingrese un título';
                           }
                           return null;
                         },
+                      ),
+                      const SizedBox(height: 16),
+                      Container(
+                        height: 200,
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Column(
+                          children: [
+                            QuillToolbar.simple(
+                              configurations: QuillSimpleToolbarConfigurations(
+                                controller: agendaController,
+                                showFontFamily: false,
+                                showSearchButton: false,
+                                showRedo: false,
+                                showUndo: false,
+                                multiRowsDisplay: false,
+                              ),
+                            ),
+                            Expanded(
+                              child: Container(
+                                padding: const EdgeInsets.all(8),
+                                child: QuillEditor(
+                                  configurations: QuillEditorConfigurations(
+                                    controller: agendaController,
+                                    
+                                    padding: const EdgeInsets.all(0),
+                                    scrollable: true,
+                                    autoFocus: false,
+                                    expands: false,
+                                    placeholder: 'Escribe la agenda aquí...',
+                                  ),
+                                  focusNode: FocusNode(),
+                                  scrollController: ScrollController(),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                       const SizedBox(height: 16),
                       TextFormField(
@@ -77,8 +116,7 @@ Future<Map<String, dynamic>?> showCreateMeetingModal(BuildContext context) {
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(8),
-                            borderSide:
-                                BorderSide(color: primaryColor, width: 2),
+                            borderSide: BorderSide(color: primaryColor, width: 2),
                           ),
                         ),
                         validator: (value) {
@@ -97,7 +135,9 @@ Future<Map<String, dynamic>?> showCreateMeetingModal(BuildContext context) {
                             Text(
                               'Fecha y hora seleccionada:',
                               style: const TextStyle(
-                                  fontSize: 16, fontWeight: FontWeight.bold),
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold
+                              ),
                             ),
                             Text(
                               DateFormat('dd/MM/yyyy HH:mm').format(dateTime),
@@ -200,21 +240,34 @@ Future<Map<String, dynamic>?> showCreateMeetingModal(BuildContext context) {
                     ),
                     const SizedBox(width: 8),
                     ElevatedButton(
-                      onPressed: () {
-                        if (formKey.currentState!.validate()) {
-                          Navigator.pop(context, {
-                            'agenda': agendaController.text,
-                            'lugar': lugarController.text,
-                            'fecha': selectedDateTime,
-                          });
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: primaryColor,
-                        foregroundColor: Colors.white,
-                      ),
-                      child: const Text('Crear'),
-                    ),
+  onPressed: () {
+    if (formKey.currentState!.validate()) {
+      final agendaData = agendaController.document.toDelta().toJson();
+      debugPrint('=== DEBUG CREATE MEETING ===');
+      debugPrint('Contenido del editor (raw):');
+      debugPrint(jsonEncode(agendaData));
+      
+      final data = {
+        'titulo': tituloController.text,
+        'agenda': {
+          'ops': agendaData
+        },
+        'lugar': lugarController.text,
+        'fecha': selectedDateTime.toIso8601String(), // Convertir a ISO8601
+      };
+      
+      debugPrint('Datos completos a enviar desde modal:');
+      debugPrint(jsonEncode(data));
+      
+      Navigator.pop(context, data);
+    }
+  },
+  style: ElevatedButton.styleFrom(
+    backgroundColor: primaryColor,
+    foregroundColor: Colors.white,
+  ),
+  child: const Text('Crear'),
+),
                   ],
                 ),
               ],

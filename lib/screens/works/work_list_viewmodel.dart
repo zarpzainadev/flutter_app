@@ -77,6 +77,31 @@ class WorkViewModel extends ChangeNotifier {
     }
   }
 
+  Future<bool> uploadTrabajoFiles({
+  required List<Map<String, dynamic>> selectedFiles,
+}) async {
+  try {
+    isLoading = true;
+    _safeNotifyListeners();
+
+    final token = await _getToken();
+    await _apiService.uploadArchivosTrabajoMultiple(
+      token,
+      trabajos.last.id, // Obtener el ID del último trabajo creado
+      selectedFiles,
+    );
+
+    return true;
+  } catch (e) {
+    errorMessage = 'Error al subir archivos: $e';
+    debugPrint(errorMessage);
+    return false;
+  } finally {
+    isLoading = false;
+    _safeNotifyListeners();
+  }
+}
+
   // Listar Reuniones (para selector)
   Future<void> loadReuniones() async {
     try {

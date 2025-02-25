@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter_web_android/models/login_model.dart';
 import 'package:flutter_web_android/models/modulo_gestion_usuario_model.dart';
 import 'package:flutter_web_android/models/modulo_user_meetings.dart';
@@ -10,6 +11,13 @@ import 'package:flutter_web_android/storage/storage_services.dart';
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:table_calendar/table_calendar.dart';
+
+extension StringExtension on String {
+  String capitalize() {
+    if (isEmpty) return this;
+    return "${this[0].toUpperCase()}${substring(1)}";
+  }
+}
 
 class CalendarWidget extends StatefulWidget {
   final List<MeetingListResponse> meetings; // Cambiar tipo
@@ -58,19 +66,45 @@ class _CalendarWidgetState extends State<CalendarWidget> {
 
   @override
   Widget build(BuildContext context) {
-    final isWeb = kIsWeb;
-    final now = DateTime.now();
+  final isWeb = kIsWeb;
+  final now = DateTime.now();
 
-    // Filtrar reuniones publicadas y futuras, luego ordenar por proximidad
-    final sortedMeetings = List<MeetingListResponse>.from(widget.meetings)
-        .where((meeting) =>
-            meeting.estado == 'Publicada' && meeting.fecha.isAfter(now))
-        .toList()
-      ..sort((a, b) {
-        final diffA = a.fecha.difference(now).abs();
-        final diffB = b.fecha.difference(now).abs();
-        return diffA.compareTo(diffB);
-      });
+  // Modificar el filtro para manejar correctamente las horas
+  final sortedMeetings = List<MeetingListResponse>.from(widget.meetings)
+    .where((meeting) {
+      if (meeting.estado != 'Publicada') return false;
+      
+      // Comparar fechas incluyendo la hora
+      final meetingDateTime = DateTime(
+        meeting.fecha.year,
+        meeting.fecha.month,
+        meeting.fecha.day,
+        meeting.fecha.hour,
+        meeting.fecha.minute,
+      );
+      
+      final currentDateTime = DateTime(
+        now.year,
+        now.month,
+        now.day,
+        now.hour,
+        now.minute,
+      );
+
+      // Si la reunión es del mismo día, verificar la hora
+      if (isSameDay(meeting.fecha, now)) {
+        return meetingDateTime.isAfter(currentDateTime);
+      }
+      
+      // Para otros días, mostrar solo días futuros
+      return meeting.fecha.isAfter(now);
+    })
+    .toList()
+    ..sort((a, b) {
+      final diffA = a.fecha.difference(now).abs();
+      final diffB = b.fecha.difference(now).abs();
+      return diffA.compareTo(diffB);
+    });
 
     // Widget de la lista de eventos
     Widget eventsList = Container(
@@ -96,54 +130,55 @@ class _CalendarWidgetState extends State<CalendarWidget> {
                     ),
                   )
                 : ListView.builder(
-                    controller: _scrollController,
-                    itemCount: sortedMeetings.length,
-                    itemBuilder: (context, index) {
-                      final meeting = sortedMeetings[index];
-                      return Container(
-                        margin: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.all(8.0),
-                              child: Text(
-                                DateFormat('EEEE d MMMM, yyyy', 'es_ES')
-                                    .format(meeting.fecha),
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ),
-                            Card(
-                              margin: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              child: Theme(
-                                data: Theme.of(context)
-                                    .copyWith(dividerColor: Colors.transparent),
-                                child: ExpansionTile(
-                                  leading: Container(
-                                    width: 4,
-                                    height: 40,
-                                    color: DateTime.now().isAfter(meeting.fecha)
-                                        ? Colors.red.shade700
-                                        : Colors.blue.shade700,
-                                  ),
-                                  title: Text(
-                                    meeting.lugar,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w500,
-                                      fontSize: 15,
-                                    ),
-                                  ),
+  controller: _scrollController,
+  itemCount: sortedMeetings.length,
+  itemBuilder: (context, index) {
+    final meeting = sortedMeetings[index];
+    return Container(
+      margin: const EdgeInsets.symmetric(
+        horizontal: 8,
+        vertical: 4,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+  padding: const EdgeInsets.all(8.0),
+  child: Text(
+    DateFormat('EEEE d MMMM, yyyy', 'es_ES')
+        .format(meeting.fecha)
+        .capitalize(),
+    style: const TextStyle(
+      fontWeight: FontWeight.bold,
+      fontSize: 14,
+    ),
+  ),
+),
+          Card(
+            margin: const EdgeInsets.symmetric(
+              horizontal: 8,
+              vertical: 4,
+            ),
+            child: Theme(
+              data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+              child: ExpansionTile(
+                initiallyExpanded: index == 0, // Esto hará que la primera reunión esté expandida
+                leading: Container(
+                  width: 4,
+                  height: 40,
+                  color: DateTime.now().isAfter(meeting.fecha)
+                      ? Colors.red.shade700
+                      : Colors.blue.shade700,
+                ),
+                title: Text(
+                  meeting.cabecera_invitacion,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w500,
+                    fontSize: 15,
+                  ),
+                ),
                                   subtitle: Text(
                                     DateFormat('HH:mm').format(meeting.fecha),
                                     style: TextStyle(
@@ -200,20 +235,26 @@ class _CalendarWidgetState extends State<CalendarWidget> {
                                             ],
                                           ),
                                           const SizedBox(height: 12),
-                                          Text(
-                                            'Agenda:',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.w500,
-                                              color: Colors.grey.shade700,
-                                            ),
-                                          ),
+                                          
                                           const SizedBox(height: 4),
-                                          Text(
-                                            meeting.agenda,
-                                            style: TextStyle(
-                                              color: Colors.grey.shade700,
-                                            ),
-                                          ),
+                                          Container(
+  height: 100,
+  child: QuillEditor(
+    configurations: QuillEditorConfigurations(
+      controller: QuillController(
+        document: Document.fromJson(meeting.agenda['ops']), // Acceder a la lista 'ops'
+        selection: const TextSelection.collapsed(offset: 0),
+        readOnly: true, // Mover readOnly aquí
+      ),
+      padding: const EdgeInsets.all(0),
+      scrollable: true,
+      autoFocus: false,
+      expands: false,
+    ),
+    focusNode: FocusNode(),
+    scrollController: ScrollController(),
+  ),
+),
                                           if (meeting.tiene_asistencia) ...[
                                             const SizedBox(height: 16),
                                             FutureBuilder<Token?>(
@@ -406,70 +447,29 @@ class _CalendarWidgetState extends State<CalendarWidget> {
 
     // Retornar layout según la plataforma
     if (isWeb) {
-      return Row(
-        children: [
-          // Lista de eventos (lado izquierdo)
-          Expanded(flex: 3, child: eventsList),
-          // Espacio para futura imagen (lado derecho)
-          Expanded(
-            flex: 7,
-            child: Container(
-              margin: const EdgeInsets.all(16),
-              color: Colors.white, // Cambiado a fondo blanco
-              child: FutureBuilder<Uint8List?>(
-                future: widget.viewModel.getUltimaFotoInvitacion(),
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting &&
-                      !snapshot.hasData) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-
-                  if (!snapshot.hasData || snapshot.data == null) {
-                    return Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.image_outlined,
-                          size: 64,
-                          color: Colors.grey[400],
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'No hay invitaciones disponibles',
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.grey[700],
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Las invitaciones aparecerán aquí',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Colors.grey[500],
-                          ),
-                        ),
-                      ],
-                    );
-                  }
-
-                  return Image.memory(
-                    snapshot.data!,
-                    fit: BoxFit.contain,
-                    width: double.infinity,
-                    height: double.infinity,
-                  );
-                },
-              ),
-            ),
-          ),
-        ],
-      );
-    } else {
-      // En móvil, solo mostrar la lista de eventos
-      return eventsList;
-    }
+  return Center( // Centramos el contenido
+    child: Container(
+      constraints: const BoxConstraints(
+        maxWidth: 1200, // Limitamos el ancho máximo
+        minWidth: 400, // Ancho mínimo para mantener legibilidad
+      ),
+      padding: const EdgeInsets.all(16),
+      child: eventsList, // Mantenemos la lista de eventos
+    ),
+  );
+} else {
+  // Versión móvil sin cambios
+  return SingleChildScrollView(
+    child: Column(
+      children: [
+        Container(
+          height: 500,
+          child: eventsList,
+        ),
+      ],
+    ),
+  );
+}
   }
 
   Color _getMarkerColor(DateTime fecha) {

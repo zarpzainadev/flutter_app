@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart' show Uint8List, kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter_web_android/components/admin_change_password_modal.dart';
 import 'package:flutter_web_android/components/cambio_estado_usuario_modal.dart';
 import 'package:flutter_web_android/components/table_flexible.dart';
 import 'package:flutter_web_android/screens/Users/user_edit/user_edit_screen.dart';
@@ -63,6 +64,12 @@ class ListUserViewModel extends ChangeNotifier {
           tooltip: 'Cambiar Estado',
           onPressed: (row) => showChangeEstadoModal(context, row),
         ),
+        TableAction(
+        icon: Icons.password,
+        color: Colors.purple,
+        tooltip: 'Cambiar Contraseña',
+        onPressed: (row) => showChangePasswordModal(context, row),
+      ),
       ];
 
   Future<void> initialize() async {
@@ -112,6 +119,45 @@ class ListUserViewModel extends ChangeNotifier {
       _safeNotifyListeners();
     }
   }
+
+  Future<bool> updateUserPassword(int userId, String newPassword) async {
+  try {
+    isLoading = true;
+    _safeNotifyListeners();
+
+    final token = await _getToken();
+    await _apiService.updateUserPassword(token, userId, newPassword);
+    return true;
+  } catch (e) {
+    errorMessage = 'Error al actualizar contraseña: $e';
+    debugPrint(errorMessage);
+    return false;
+  } finally {
+    isLoading = false;
+    _safeNotifyListeners();
+  }
+}
+
+// Agregar este método para mostrar el modal
+void showChangePasswordModal(BuildContext context, Map<String, dynamic> row) {
+  showDialog(
+    context: context,
+    builder: (context) => AdminChangePasswordModal(
+      onChangePassword: (newPassword) async {
+        final success = await updateUserPassword(row['id'], newPassword);
+        
+        if (success && context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Contraseña actualizada exitosamente'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      },
+    ),
+  );
+}
 
   Future<void> generateReport({
     required String estadoNombre,

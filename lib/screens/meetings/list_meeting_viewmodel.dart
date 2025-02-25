@@ -1,5 +1,6 @@
 // list_meeting_viewmodel.dart
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_web_android/components/create_meeting_modal.dart';
@@ -36,11 +37,12 @@ class ListMeetingViewModel extends ChangeNotifier {
 
   // Configuración de columnas para la tabla
   List<ColumnConfig> get columns => [
-        ColumnConfig(label: 'Agenda', field: 'descripcion', width: 300),
-        ColumnConfig(label: 'Fecha', field: 'fecha', width: 150),
-        ColumnConfig(label: 'Lugar', field: 'lugar', width: 150),
-        ColumnConfig(label: 'Estado', field: 'estado', width: 100),
-      ];
+      ColumnConfig(label: 'Título', field: 'titulo', width: 200), // Nueva columna
+      ColumnConfig(label: 'Agenda', field: 'descripcion', width: 300),
+      ColumnConfig(label: 'Fecha', field: 'fecha', width: 150),
+      ColumnConfig(label: 'Lugar', field: 'lugar', width: 150),
+      ColumnConfig(label: 'Estado', field: 'estado', width: 100),
+    ];
 
   // Acciones de la tabla
   // In list_meeting_viewmodel.dart
@@ -143,74 +145,61 @@ class ListMeetingViewModel extends ChangeNotifier {
 
   // En list_meeting_viewmodel.dart
   void onRegisterActa(BuildContext context, Map<String, dynamic> row) async {
-    // 1. Verificar estado de la reunión
-    if (row['estado'] != 'Publicada') {
-      debugPrint('Solo se pueden registrar actas para reuniones publicadas');
-      return;
-    }
+  if (row['estado'] != 'Publicada') {
+    debugPrint('Solo se pueden registrar actas para reuniones publicadas');
+    return;
+  }
 
-    // 2. Mostrar modal para seleccionar archivo
-    final result = await showUploadActaModal(context);
+  final result = await showUploadActaModal(context, row['id'], this);
 
-    if (result != null) {
-      try {
-        isLoading = true;
-        _safeNotifyListeners();
+  if (result != null) {
+    try {
+      // Ya no establecemos isLoading aquí
+      final meetingId = row['id'] as int;
+      final fileBytes = result['file'] as List<int>;
+      final fileName = result['fileName'] as String;
 
-        // 3. Obtener datos necesarios
-        final meetingId = row['id'] as int;
-        final fileBytes = result['file'] as List<int>;
-        final fileName = result['fileName'] as String;
+      final success = await createAndUploadActa(
+        meetingId,
+        fileBytes,
+        fileName,
+      );
 
-        debugPrint('Registrando acta para reunión: $meetingId');
-
-        // 4. Usar el método existente que maneja todo el proceso
-        final success = await createAndUploadActa(
-          meetingId,
-          fileBytes,
-          fileName,
+      if (success && context.mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Éxito'),
+            content: const Text('Acta registrada exitosamente'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
         );
-
-        // 5. Mostrar resultado
-        if (success && context.mounted) {
-          showDialog(
-            context: context,
-            builder: (context) => AlertDialog(
-              title: const Text('Éxito'),
-              content: const Text('Acta registrada exitosamente'),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('OK'),
-                ),
-              ],
-            ),
-          );
-        }
-      } catch (e) {
-        errorMessage = 'Error al registrar acta: $e';
-        debugPrint(errorMessage);
-        if (context.mounted) {
-          showDialog(
-            context: context,
-            builder: (context) => AlertDialog(
-              title: const Text('Error'),
-              content: Text('Error al registrar acta: $e'),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('OK'),
-                ),
-              ],
-            ),
-          );
-        }
-      } finally {
-        isLoading = false;
-        _safeNotifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Error al registrar acta: $e');
+      if (context.mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Error'),
+            content: Text('Error al registrar acta: $e'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
       }
     }
   }
+}
 
   // Métodos temporales para las acciones
   void onUpdateMeeting(BuildContext context, Map<String, dynamic> row) async {
@@ -227,11 +216,12 @@ class ListMeetingViewModel extends ChangeNotifier {
         }
 
         final meeting = MeetingUpdate(
-          fecha: result['fecha'] as DateTime,
-          lugar: result['lugar'] as String,
-          agenda: result['agenda'] as String,
-          estado: result['estado'] as String, // Agregado el estado
-        );
+  fecha: result['fecha'] as DateTime,
+  lugar: result['lugar'] as String,
+  agenda: result['agenda'] as Map<String, dynamic>,
+  estado: result['estado'] as String,
+  cabecera_invitacion: result['titulo'] as String, // Incluir el título
+);
 
         debugPrint('Actualizando reunión con datos:');
         debugPrint('ID: ${result['id']}');
@@ -278,25 +268,34 @@ class ListMeetingViewModel extends ChangeNotifier {
   // Método para crear nueva reunión (se usará en el botón)
   // En list_meeting_viewmodel.dart, modificar:
   void onCreateMeeting(BuildContext context) async {
-    final result = await showCreateMeetingModal(context);
+  final result = await showCreateMeetingModal(context);
 
-    if (result != null) {
-      try {
-        isLoading = true;
-        _safeNotifyListeners();
+  if (result != null) {
+    debugPrint('=== DEBUG VIEW MODEL ===');
+    debugPrint('Datos recibidos del modal:');
+    debugPrint(jsonEncode(result));
+    
+    try {
+      isLoading = true;
+      _safeNotifyListeners();
 
-        final token = await StorageService.getToken();
-        if (token == null) {
-          throw Exception('No hay sesión activa');
-        }
+      final token = await StorageService.getToken();
+      if (token == null) {
+        throw Exception('No hay sesión activa');
+      }
 
-        final meeting = MeetingCreate(
-          fecha: result['fecha'] as DateTime,
-          lugar: result['lugar'] as String,
-          agenda: result['agenda'] as String,
-        );
+      // Convertir la fecha string a DateTime
+      final meeting = MeetingCreate(
+        fecha: DateTime.parse(result['fecha'] as String), // Aquí está el cambio
+        lugar: result['lugar'] as String,
+        agenda: result['agenda'] as Map<String, dynamic>,
+        cabecera_invitacion: result['titulo'] as String,
+      );
 
-        await _apiService.createMeeting(token.accessToken, meeting);
+      debugPrint('Datos completos a enviar:');
+      debugPrint(jsonEncode(meeting));
+
+      await _apiService.createMeeting(token.accessToken, meeting);
 
         if (context.mounted) {
           showDialog(
@@ -398,23 +397,28 @@ class ListMeetingViewModel extends ChangeNotifier {
   }
 
   Future<bool> publishMeeting(int meetingId) async {
-    try {
-      isLoading = true;
-      _safeNotifyListeners();
+  try {
+    isLoading = true;
+    _safeNotifyListeners();
 
-      final token = await _getToken();
-      await _apiService.publishMeeting(token, meetingId);
-      await listMeetings(forceRefresh: true);
-      return true;
-    } catch (e) {
-      errorMessage = 'Error al publicar reunión: $e';
-      debugPrint('Error en publishMeeting: $e');
-      return false;
-    } finally {
-      isLoading = false;
-      _safeNotifyListeners();
-    }
+    debugPrint('Publicando reunión: $meetingId');
+    final token = await _getToken();
+
+    // Agregar log para ver la respuesta
+    final response = await _apiService.publishMeeting(token, meetingId);
+    debugPrint('Respuesta de publicación: ${jsonEncode(response.toJson())}');
+
+    await listMeetings(forceRefresh: true);
+    return true;
+  } catch (e) {
+    errorMessage = 'Error al publicar reunión: $e';
+    debugPrint('Error en publishMeeting: $e');
+    return false;
+  } finally {
+    isLoading = false;
+    _safeNotifyListeners();
   }
+}
 
   //funciones para la creacion y subida del acta
   Future<bool> createAndUploadActa(
@@ -474,6 +478,38 @@ class ListMeetingViewModel extends ChangeNotifier {
     }
   }
 
+  Future<List<ActaDetailResponse>> getActasByMeeting(int reunionId) async {
+  try {
+    final token = await _getToken();
+    final actas = await _apiService.getActasByReunion(token, reunionId);
+    return actas;
+  } catch (e) {
+    // No lanzamos error si es 404, simplemente retornamos lista vacía
+    if (e is ActaError && e.statusCode == 404) {
+      return [];
+    }
+    debugPrint('Error al obtener actas: $e');
+    throw e; // Propagamos otros errores
+  }
+}
+
+Future<bool> deleteActa(int actaId) async {
+  try {
+    // Quitamos el isLoading global
+    final token = await _getToken();
+    await _apiService.deleteActa(token, actaId);
+    return true;
+  } on ActaError catch (e) {
+    errorMessage = 'Error al eliminar acta: ${e.message}';
+    debugPrint('ActaError en deleteActa: ${e.message}');
+    return false;
+  } catch (e) {
+    errorMessage = 'Error inesperado al eliminar acta: $e';
+    debugPrint('Error inesperado en deleteActa: $e');
+    return false;
+  }
+}
+
   Future<void> generateMeetingsReport(String formato) async {
     try {
       isLoading = true;
@@ -500,18 +536,19 @@ class ListMeetingViewModel extends ChangeNotifier {
   }
 
   List<Map<String, dynamic>> transformMeetingData(
-      List<MeetingListResponse> meetings) {
-    return meetings.map((meeting) {
-      return {
-        'id': meeting.id,
-        'descripcion': meeting.agenda,
-        'fecha': _formatDate(meeting.fecha),
-        'lugar': meeting.lugar,
-        'estado': meeting.estado,
-        'tiene_asistencia': meeting.tiene_asistencia
-      };
-    }).toList();
-  }
+    List<MeetingListResponse> meetings) {
+  return meetings.map((meeting) {
+    return {
+      'id': meeting.id,
+      'titulo': meeting.cabecera_invitacion,
+      'descripcion': meeting.agenda,
+      'fecha': _formatDate(meeting.fecha),
+      'lugar': meeting.lugar,
+      'estado': meeting.estado,
+      'tiene_asistencia': meeting.tiene_asistencia
+    };
+  }).toList();
+}
 
   void onViewDetails(BuildContext context, Map<String, dynamic> row) {
     // Implementar vista de detalles

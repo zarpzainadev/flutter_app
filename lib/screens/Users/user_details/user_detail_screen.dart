@@ -262,12 +262,10 @@ class _UserDetailView extends StatelessWidget {
       );
 
   Widget _buildGradeInfo() => GradoOutWidget(
-        grado: userDetail.grados?.grado ?? UserDetailConstants.noInfo,
-        abrevGrado:
-            userDetail.grados?.abrev_grado ?? UserDetailConstants.noInfo,
-        fechaGrado: userDetail.grados?.fecha_grado,
-        estado: userDetail.grados?.estado ?? UserDetailConstants.noInfo,
-      );
+  grado: userDetail.grados?.nombre_grado ?? UserDetailConstants.noInfo,
+  fechaGrado: userDetail.grados?.fecha_grado,
+  estado: userDetail.grados?.estado ?? UserDetailConstants.noInfo,
+);
 
   Widget _buildAddressInfo() => DireccionOutWidget(
         tipoVia: userDetail.direcciones?.tipo_via ?? UserDetailConstants.noInfo,

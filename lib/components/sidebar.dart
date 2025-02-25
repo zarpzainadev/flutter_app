@@ -6,9 +6,13 @@ import 'package:flutter_web_android/screens/Users/list_user_screen.dart';
 import 'package:flutter_web_android/screens/Users/user_register/user_register_screen.dart';
 import 'package:flutter_web_android/screens/assistance_historical_user/assistance_historical_user_screen.dart';
 import 'package:flutter_web_android/screens/calendar/calendar_screen.dart';
+import 'package:flutter_web_android/screens/cargos/cargos_screen.dart';
+import 'package:flutter_web_android/screens/cuadro/cuadro_screen.dart';
+import 'package:flutter_web_android/screens/enlaces/gestion_enlaces_screen.dart';
 import 'package:flutter_web_android/screens/grados/grados_screen.dart';
 import 'package:flutter_web_android/screens/meetings/list_meetings.dart';
 import 'package:flutter_web_android/screens/password/change_password_screen.dart';
+import 'package:flutter_web_android/screens/resources/resources_screen.dart';
 import 'package:flutter_web_android/screens/works/work_list_screen.dart';
 import 'package:flutter_web_android/screens/works_user/works_screen.dart';
 
@@ -29,36 +33,14 @@ class SidebarItem {
   final String label;
   final Widget screen;
 
-  SidebarItem({
+  const SidebarItem({
     required this.icon,
     required this.label,
     required this.screen,
   });
 }
 
-// Definición del mapa screenGroups
 final Map<String, ScreenGroup> screenGroups = {
-  'tesorero_options': ScreenGroup(
-    identifier: 'tesorero_options',
-    name: 'Tesorero',
-    items: [
-      SidebarItem(
-        icon: Icons.account_balance_wallet,
-        label: 'Dashboard Financiero',
-        screen: const Center(child: Text('Dashboard Financiero')),
-      ),
-      SidebarItem(
-        icon: Icons.receipt_long,
-        label: 'Transacciones',
-        screen: const Center(child: Text('Transacciones')),
-      ),
-      SidebarItem(
-        icon: Icons.assessment,
-        label: 'Reportes',
-        screen: const Center(child: Text('Reportes')),
-      ),
-    ],
-  ),
   'admin_options': ScreenGroup(
     identifier: 'admin_options',
     name: 'Gestión de usuarios',
@@ -80,6 +62,18 @@ final Map<String, ScreenGroup> screenGroups = {
       ),
     ],
   ),
+
+  'cuadro_options': ScreenGroup(
+  identifier: 'cuadro_options',
+  name: 'Cuadro',
+  items: [
+    SidebarItem(
+      icon: Icons.grid_view,
+      label: 'Cuadro',
+      screen: const CuadroScreen(),
+    ),
+  ],
+),
   'secretario_options': ScreenGroup(
     identifier: 'secretario_options',
     name: 'Secretario',
@@ -93,8 +87,8 @@ final Map<String, ScreenGroup> screenGroups = {
         icon: Icons.calendar_today,
         label: 'Calendario de Reuniones',
         screen: CalendarScreen(
-          meetings: const [], // Esto realmente no se usa
-          onMeetingTap: (MeetingListResponse meeting) {
+          meetings: const [],
+          onMeetingTap: (meeting) {
             debugPrint('Reunión seleccionada: ${meeting.id}');
           },
         ),
@@ -103,6 +97,28 @@ final Map<String, ScreenGroup> screenGroups = {
         icon: Icons.notifications,
         label: 'Trabajos',
         screen: const WorkListScreen(),
+      ),
+    ],
+  ),
+  'url_options': ScreenGroup(
+    identifier: 'url_options',
+    name: 'Url',
+    items: [
+      SidebarItem(
+        icon: Icons.link,
+        label: 'Enlaces y urls',
+        screen: const GestionEnlacesScreen(),
+      ),
+    ]
+  ),
+  'vigilante_options': ScreenGroup(
+    identifier: 'vigilante_options',
+    name: 'Vigilante',
+    items: [
+      SidebarItem(
+        icon: Icons.shield,
+        label: 'Cargos',
+        screen: const CargosScreen(),
       ),
     ],
   ),
@@ -134,14 +150,14 @@ final Map<String, ScreenGroup> screenGroups = {
         screen: const WorksScreen(),
       ),
       SidebarItem(
-        icon: Icons.payment,
-        label: 'Pagos',
-        screen: const Center(child: Text('Pagos')),
-      ),
-      SidebarItem(
         icon: Icons.lock_reset,
         label: 'Cambiar contraseña',
-        screen: const ChangePasswordScreen(), // Usar la nueva pantalla
+        screen: const ChangePasswordScreen(),
+      ),
+      SidebarItem(
+        icon: Icons.library_books_outlined,
+        label: 'Recursos',
+        screen: const ResourcesScreen(),
       ),
     ],
   ),
@@ -151,12 +167,14 @@ class Sidebar extends StatefulWidget {
   final Function(Widget) onSelectScreen;
   final List<String> allowedGroups;
   final Function(BuildContext) onLogout;
+  final String organizacionDescripcion;
 
   const Sidebar({
     Key? key,
     required this.onSelectScreen,
     required this.allowedGroups,
     required this.onLogout,
+    required this.organizacionDescripcion,
   }) : super(key: key);
 
   @override
@@ -167,12 +185,13 @@ class _SidebarState extends State<Sidebar> with SingleTickerProviderStateMixin {
   bool _isHovered = false;
   late AnimationController _controller;
   late Animation<double> _fadeAnimation;
-  late Animation<Offset> _slideAnimation;
 
-  // Updated color scheme with softer blue
-  static const Color primaryBlue = Color(0xFF4E67F7);
+  // Constantes optimizadas
+  static const Duration _animationDuration = Duration(milliseconds: 150);
+  static const Curve _animationCurve = Curves.fastOutSlowIn;
+  static const Color primaryColor = Color(0xFF4E67F7);
   static const Color hoverColor = Color(0xFF5C73F7);
-  static const Color backgroundColor = Color(0xFF4E67F7);
+  static const Color backgroundColor = Color(0xFF1E3A8A);
   static const double expandedWidth = 270;
   static const double collapsedWidth = 70;
 
@@ -180,21 +199,14 @@ class _SidebarState extends State<Sidebar> with SingleTickerProviderStateMixin {
   void initState() {
     super.initState();
     _controller = AnimationController(
-      duration: const Duration(milliseconds: 300),
+      duration: _animationDuration,
       vsync: this,
     );
+    
     _fadeAnimation = CurvedAnimation(
       parent: _controller,
-      curve: Curves.ease,
+      curve: _animationCurve,
     );
-
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(-0.5, 0.0),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeOutCubic,
-    ));
   }
 
   @override
@@ -203,218 +215,252 @@ class _SidebarState extends State<Sidebar> with SingleTickerProviderStateMixin {
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    // Android version (Drawer) with updated colors
-    if (!kIsWeb) {
-      return Drawer(
-        child: Container(
-          color: backgroundColor,
-          child: ListView(
-            padding: EdgeInsets.zero,
-            children: <Widget>[
-              DrawerHeader(
-                decoration: BoxDecoration(
-                  color: backgroundColor,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    CircleAvatar(
-                      radius: 25,
-                      backgroundColor: Colors.white.withOpacity(0.2),
-                      child: const Icon(Icons.person,
-                          color: Colors.white, size: 30),
-                    ),
-                    const SizedBox(height: 12),
-                    const Text(
-                      'Menu',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              ...widget.allowedGroups.expand((groupId) {
-                final group = screenGroups[groupId];
-                if (group == null) return <Widget>[];
-                return [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 10),
-                    child: Text(
-                      group.name.toUpperCase(),
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.6),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                  ),
-                  ...group.items.map(
-                    (item) => buildModernSidebarItem(
-                      icon: _getUpdatedIcon(item.label, item.icon),
-                      label: item.label,
-                      isExpanded: true,
-                      onTap: () {
-                        widget.onSelectScreen(item.screen);
-                        Navigator.of(context).pop();
-                      },
-                    ),
-                  ),
-                ];
-              }).toList(),
-            ],
-          ),
-        ),
-      );
-    }
+  Widget _buildLazyMenuItems() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: widget.allowedGroups.map((groupId) {
+            final group = screenGroups[groupId];
+            if (group == null) return const SizedBox.shrink();
 
-    return MouseRegion(
-      onEnter: (_) {
-        setState(() => _isHovered = true);
-        _controller.forward();
-      },
-      onExit: (_) {
-        setState(() => _isHovered = false);
-        _controller.reverse();
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        width: _isHovered ? expandedWidth : collapsedWidth,
-        decoration: BoxDecoration(
-          color: backgroundColor,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        margin: const EdgeInsets.all(12),
-        child: Column(
-          children: [
-            const SizedBox(height: 16),
-            // Logo section
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child:
-                        const Icon(Icons.apps, color: Colors.white, size: 20),
-                  ),
-                  if (_isHovered) ...[
-                    const SizedBox(width: 12),
-                    FadeTransition(
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (_isHovered)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: FadeTransition(
                       opacity: _fadeAnimation,
-                      child: const Text(
-                        'Aqumex',
+                      child: Text(
+                        group.name.toUpperCase(),
                         style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
+                          color: Colors.white.withOpacity(0.6),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          letterSpacing: 0.5,
                         ),
                       ),
                     ),
-                  ],
+                  ),
+                ...group.items.map((item) => _buildLazyMenuItem(item)),
+              ],
+            );
+          }).toList(),
+        );
+      },
+    );
+  }
+
+  Widget _buildLazyMenuItem(SidebarItem item) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return ListTile(
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 4,
+          ),
+          dense: true,
+          leading: Icon(
+            item.icon,
+            color: Colors.white,
+            size: 24,
+          ),
+          title: _isHovered
+              ? FadeTransition(
+                  opacity: _fadeAnimation,
+                  child: Text(
+                    item.label,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                    ),
+                  ),
+                )
+              : null,
+          onTap: () => widget.onSelectScreen(item.screen),
+          hoverColor: hoverColor,
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isWeb = kIsWeb;
+
+    return RepaintBoundary(
+      child: isWeb 
+        ? MouseRegion(
+            onEnter: (_) {
+              setState(() => _isHovered = true);
+              _controller.forward();
+            },
+            onExit: (_) {
+              setState(() => _isHovered = false);
+              _controller.reverse();
+            },
+            child: AnimatedContainer(
+              duration: _animationDuration,
+              curve: _animationCurve,
+              width: _isHovered ? expandedWidth : collapsedWidth,
+              decoration: BoxDecoration(
+                color: backgroundColor,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              margin: const EdgeInsets.all(12),
+              child: Column(
+                children: [
+                  // Logo section con lazy loading
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      return Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Icon(Icons.apps, color: Colors.white, size: 20),
+                            ),
+                            if (_isHovered) ...[
+        const SizedBox(width: 12),
+        Flexible( // Envolver con Flexible
+          child: FadeTransition(
+            opacity: _fadeAnimation,
+            child: Text(
+              widget.organizacionDescripcion,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+              overflow: TextOverflow.ellipsis, // Añadir esto
+              maxLines: 1, // Añadir esto
+            ),
+          ),
+        ),
+      ],
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                  
+                  // Menu items con lazy loading
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: _buildLazyMenuItems(),
+                    ),
+                  ),
+
+                  // Logout button con lazy loading
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      return ListTile(
+                        leading: const Icon(Icons.logout, color: Colors.white),
+                        title: _isHovered
+                            ? FadeTransition(
+                                opacity: _fadeAnimation,
+                                child: const Text(
+                                  'Cerrar Sesión',
+                                  style: TextStyle(color: Colors.white),
+                                ),
+                              )
+                            : null,
+                        onTap: () => widget.onLogout(context),
+                      );
+                    },
+                  ),
                 ],
               ),
             ),
-            const SizedBox(height: 24),
-
-            // Menu items
-            Expanded(
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: widget.allowedGroups.expand((groupId) {
+          )
+        : Drawer(
+            child: Container(
+              color: backgroundColor,
+              child: ListView(
+                padding: EdgeInsets.zero,
+                children: [
+                  DrawerHeader(
+                    decoration: BoxDecoration(color: backgroundColor),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const CircleAvatar(
+                          radius: 25,
+                          backgroundColor: Colors.white24,
+                          child: Icon(Icons.person, color: Colors.white, size: 30),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          widget.organizacionDescripcion,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  ...widget.allowedGroups.expand((groupId) {
                     final group = screenGroups[groupId];
                     if (group == null) return <Widget>[];
                     return [
-                      if (_isHovered)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 8),
-                          child: FadeTransition(
-                            opacity: _fadeAnimation,
-                            child: Text(
-                              group.name.toUpperCase(),
-                              style: TextStyle(
-                                color: Colors.white.withOpacity(0.6),
-                                fontSize: 11,
-                                fontWeight: FontWeight.w500,
-                                letterSpacing: 0.5,
-                              ),
-                            ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        child: Text(
+                          group.name.toUpperCase(),
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.6),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                            letterSpacing: 0.5,
                           ),
-                        ),
-                      ...group.items.map(
-                        (item) => ListTile(
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 4,
-                          ),
-                          dense: true,
-                          leading: Icon(
-                            item.icon,
-                            color: Colors.white,
-                            size: 28,
-                          ),
-                          title: _isHovered
-                              ? SlideTransition(
-                                  // Aquí va la nueva animación
-                                  position: _slideAnimation,
-                                  child: FadeTransition(
-                                    opacity: _fadeAnimation,
-                                    child: Text(
-                                      item.label,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                  ),
-                                )
-                              : null,
-                          onTap: () => widget.onSelectScreen(item.screen),
-                          hoverColor: hoverColor,
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      ...group.items.map(
+                        (item) => ListTile(
+                          leading: Icon(item.icon, color: Colors.white),
+                          title: Text(
+                            item.label,
+                            style: const TextStyle(color: Colors.white),
+                          ),
+                          onTap: () {
+                            widget.onSelectScreen(item.screen);
+                            Navigator.pop(context);
+                          },
+                        ),
+                      ),
                     ];
                   }).toList(),
-                ),
+                  ListTile(
+                    leading: const Icon(Icons.logout, color: Colors.white),
+                    title: const Text(
+                      'Cerrar Sesión',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                    onTap: () => widget.onLogout(context),
+                  ),
+                ],
               ),
             ),
-            ListTile(
-              leading: Icon(Icons.logout, color: Colors.white),
-              title: _isHovered
-                  ? Text(
-                      'Logout',
-                      style: const TextStyle(color: Colors.white),
-                    )
-                  : null,
-              onTap: () {
-                widget.onLogout(context);
-              },
-            ),
-          ],
-        ),
-      ),
+          ),
     );
   }
+
 
   Widget buildModernSidebarItem({
     required IconData icon,

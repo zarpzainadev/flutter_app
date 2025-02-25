@@ -1,29 +1,30 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_web_android/models/login_model.dart';
+import 'package:flutter_web_android/models/modulo_gestion_usuario_model.dart';
+import 'package:flutter_web_android/services/api_service_admin.dart';
 import 'package:flutter_web_android/services/api_service_login.dart';
 import 'package:flutter_web_android/storage/storage_services.dart';
 
-// Enum para manejar los diferentes estados del login
 enum LoginStatus { initial, loading, success, error }
 
 class LoginViewModel extends ChangeNotifier {
-  // Instancia del servicio API
   final ApiService _apiService = ApiService();
+  final ApiServiceAdmin _apiServiceAdmin = ApiServiceAdmin();
+  
 
-  // Estado actual del login
   LoginStatus _status = LoginStatus.initial;
   LoginStatus get status => _status;
 
-  // Mensaje de error si algo falla
   String? _errorMessage;
   String? get errorMessage => _errorMessage;
 
-  // Token resultante del login
   Token? _token;
   Token? get token => _token;
 
-  // Verificar si hay una sesión activa
+  List<NewOrganizacionResponse> _organizaciones = [];
+  List<NewOrganizacionResponse> get organizaciones => _organizaciones;
+
   Future<bool> checkSession() async {
     final savedToken = await StorageService.getToken();
     if (savedToken != null) {
@@ -35,7 +36,40 @@ class LoginViewModel extends ChangeNotifier {
     return false;
   }
 
-  // Método principal para realizar el login
+  Future<void> fetchGrupos() async {
+  try {
+    _status = LoginStatus.loading;
+    notifyListeners();
+
+    _organizaciones = await _apiServiceAdmin.listOrganizations('');
+    _status = LoginStatus.success;
+  } catch (e) {
+    _status = LoginStatus.error;
+    _errorMessage = 'Error al cargar organizaciones: $e';
+    debugPrint('Error en fetchGrupos: $e');
+  } finally {
+    notifyListeners();
+  }
+}
+
+List<NewOrganizacionResponse> get organizacionesFiltradas {
+    // Crear un mapa para mantener una organización por grupo
+    final Map<String, NewOrganizacionResponse> gruposFiltrados = {};
+    
+    for (var org in _organizaciones) {
+      // Si el grupo no existe en el mapa o si el número es menor, lo guardamos
+      if (!gruposFiltrados.containsKey(org.grupo)) {
+        gruposFiltrados[org.grupo] = org;
+      }
+    }
+    
+    // Convertir el mapa a lista
+    return gruposFiltrados.values.toList();
+  }
+
+  String _selectedOrganizacionDescripcion = '';
+  String get selectedOrganizacionDescripcion => _selectedOrganizacionDescripcion;
+
   Future<bool> login({
     required String grupo,
     required String numero,
@@ -47,6 +81,12 @@ class LoginViewModel extends ChangeNotifier {
       _errorMessage = null;
       notifyListeners();
 
+      // Obtener la descripción de la organización seleccionada
+      final organizacion = _organizaciones.firstWhere(
+        (org) => org.grupo == grupo && org.numero == numero,
+      );
+      _selectedOrganizacionDescripcion = organizacion.descripcion;
+
       final loginRequest = LoginRequest(
         grupo: grupo,
         numero: numero,
@@ -55,6 +95,8 @@ class LoginViewModel extends ChangeNotifier {
       );
 
       _token = await _apiService.login(loginRequest);
+      // Guardar la descripción junto con el token
+      await StorageService.saveOrganizacionDescripcion(_selectedOrganizacionDescripcion);
       await StorageService.saveToken(_token!);
 
       _status = LoginStatus.success;
@@ -63,10 +105,8 @@ class LoginViewModel extends ChangeNotifier {
     } catch (e) {
       _status = LoginStatus.error;
 
-      // Manejar diferentes tipos de errores
       if (e.toString().contains('404')) {
-        _errorMessage =
-            'Organización no encontrada para el grupo y número ingresados';
+        _errorMessage = 'Organización no encontrada para el grupo y número ingresados';
       } else if (e.toString().contains('401')) {
         _errorMessage = 'Usuario o contraseña incorrectos';
       } else if (e.toString().contains('403')) {
@@ -84,7 +124,6 @@ class LoginViewModel extends ChangeNotifier {
     }
   }
 
-  // Método para resetear el estado
   void reset() {
     _status = LoginStatus.initial;
     _errorMessage = null;

@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../screens/login_screen/login_view_model.dart';
 
 class LoginForm extends StatefulWidget {
@@ -26,6 +27,7 @@ class _LoginFormState extends State<LoginForm> {
   String? _numberError;
   String? _identifierError;
   String? _passwordError;
+  bool _rememberMe = false;
 
   // Validador para el número
   String? _validateNumber(String? value) {
@@ -82,27 +84,61 @@ class _LoginFormState extends State<LoginForm> {
   }
 
   @override
-  void initState() {
-    super.initState();
-    // Agregar listeners para validación en tiempo real
-    _numberController.addListener(() {
-      setState(() {
-        _numberError = _validateNumber(_numberController.text);
-      });
+void initState() {
+  super.initState();
+  _loadSavedCredentials();
+  // Agregar listeners para validación en tiempo real
+  _numberController.addListener(() {
+    setState(() {
+      _numberError = _validateNumber(_numberController.text);
     });
+  });
 
-    _identifierController.addListener(() {
-      setState(() {
-        _identifierError = _validateIdentifier(_identifierController.text);
-      });
+  _identifierController.addListener(() {
+    setState(() {
+      _identifierError = _validateIdentifier(_identifierController.text);
     });
+  });
 
-    _passwordController.addListener(() {
-      setState(() {
-        _passwordError = _validatePassword(_passwordController.text);
-      });
+  _passwordController.addListener(() {
+    setState(() {
+      _passwordError = _validatePassword(_passwordController.text);
     });
+  });
+
+  // Cargar los grupos al iniciar
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    context.read<LoginViewModel>().fetchGrupos();
+  });
+}
+
+
+  Future<void> _loadSavedCredentials() async {
+  final prefs = await SharedPreferences.getInstance();
+  setState(() {
+    _rememberMe = prefs.getBool('remember_me') ?? false;
+    if (_rememberMe) {
+      _selectedGroup = prefs.getString('saved_group') ?? '';
+      _numberController.text = prefs.getString('saved_number') ?? '';
+      _identifierController.text = prefs.getString('saved_identifier') ?? '';
+    }
+  });
+}
+
+Future<void> _saveCredentials() async {
+  final prefs = await SharedPreferences.getInstance();
+  if (_rememberMe) {
+    await prefs.setString('saved_group', _selectedGroup);
+    await prefs.setString('saved_number', _numberController.text);
+    await prefs.setString('saved_identifier', _identifierController.text);
+    await prefs.setBool('remember_me', true);
+  } else {
+    await prefs.remove('saved_group');
+    await prefs.remove('saved_number');
+    await prefs.remove('saved_identifier');
+    await prefs.remove('remember_me');
   }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -128,39 +164,35 @@ class _LoginFormState extends State<LoginForm> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 DropdownButtonFormField<String>(
-                  value: _selectedGroup.isEmpty ? null : _selectedGroup,
-                  decoration: InputDecoration(
-                    labelText: 'Grupo',
-                    prefixIcon: const Icon(Icons.group_outlined),
-                    labelStyle: TextStyle(color: Colors.grey[600]),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderSide: const BorderSide(color: Color(0xFFE0E3E7)),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    filled: true,
-                    fillColor: const Color(0xFFF1F4F8),
-                  ),
-                  items: const [
-                    DropdownMenuItem(
-                      value: 'Simbolica',
-                      child: Text('Simbólica'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'Regular',
-                      child: Text('Regular'),
-                    ),
-                  ],
-                  dropdownColor: const Color.fromARGB(255, 255, 255, 255),
-                  onChanged: (String? value) {
-                    setState(() {
-                      _selectedGroup = value ?? '';
-                    });
-                  },
-                  hint: const Text('Selecciona un grupo'),
-                ),
+  value: _selectedGroup.isEmpty ? null : _selectedGroup,
+  decoration: InputDecoration(
+    labelText: 'Grupo',
+    prefixIcon: const Icon(Icons.group_outlined),
+    labelStyle: TextStyle(color: Colors.grey[600]),
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(8),
+    ),
+    enabledBorder: OutlineInputBorder(
+      borderSide: const BorderSide(color: Color(0xFFE0E3E7)),
+      borderRadius: BorderRadius.circular(8),
+    ),
+    filled: true,
+    fillColor: const Color(0xFFF1F4F8),
+  ),
+  items: viewModel.organizacionesFiltradas.map((org) {
+  return DropdownMenuItem(
+    value: org.grupo,
+    child: Text(org.grupo),
+  );
+}).toList(),
+  dropdownColor: const Color.fromARGB(255, 255, 255, 255),
+  onChanged: (String? value) {
+    setState(() {
+      _selectedGroup = value ?? '';
+    });
+  },
+  hint: const Text('Selecciona un grupo'),
+),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _numberController,
@@ -265,21 +297,26 @@ class _LoginFormState extends State<LoginForm> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: () {
-                      // Implementar recuperación de contraseña
-                    },
-                    child: const Text(
-                      '¿Has olvidado tu contraseña?',
-                      style: TextStyle(
-                        color: Color(0xFF3A53FF),
-                        fontSize: 14,
-                      ),
-                    ),
-                  ),
-                ),
+                Row(
+  children: [
+    Checkbox(
+      value: _rememberMe,
+      onChanged: (value) {
+        setState(() {
+          _rememberMe = value ?? false;
+        });
+      },
+      activeColor: const Color(0xFF3A53FF),
+    ),
+    const Text(
+      'Recordar mis datos',
+      style: TextStyle(
+        color: Colors.grey,
+        fontSize: 14,
+      ),
+    ),
+  ],
+),
                 const SizedBox(height: 24),
                 if (viewModel.errorMessage != null)
                   Container(
@@ -312,59 +349,33 @@ class _LoginFormState extends State<LoginForm> {
                     ),
                   ),
                 ElevatedButton(
-                  onPressed: _isFormValid()
-                      ? () async {
-                          final success = await viewModel.login(
-                            grupo: _selectedGroup,
-                            numero: _numberController.text,
-                            username: _identifierController.text,
-                            password: _passwordController.text,
-                          );
+  onPressed: _isFormValid()
+    ? () async {
+        if (_rememberMe) {
+          await _saveCredentials();
+        }
+        
+        final success = await viewModel.login(
+          grupo: _selectedGroup,
+          numero: _numberController.text,
+          username: _identifierController.text,
+          password: _passwordController.text,
+        );
 
-                          if (success) {
-                            widget.onLoginSuccess();
-                          }
-                        }
-                      : null,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF3A53FF),
-                    disabledBackgroundColor:
-                        const Color(0xFF3A53FF).withOpacity(0.5),
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(28),
-                    ),
-                    minimumSize: const Size(double.infinity, 56),
-                    elevation: 2,
-                  ).copyWith(
-                    elevation: MaterialStateProperty.resolveWith<double>(
-                      (Set<MaterialState> states) {
-                        if (states.contains(MaterialState.pressed)) {
-                          return 8;
-                        }
-                        return 2;
-                      },
-                    ),
-                  ),
-                  child: viewModel.status == LoginStatus.loading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            valueColor:
-                                AlwaysStoppedAnimation<Color>(Colors.white),
-                            strokeWidth: 2,
-                          ),
-                        )
-                      : const Text(
-                          'Iniciar Sesión',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                ),
+        if (success) {
+          widget.onLoginSuccess();
+        }
+      }
+    : null,
+  style: ElevatedButton.styleFrom(
+    // ... resto del código del botón
+  ),
+  child: viewModel.status == LoginStatus.loading
+    ? const SizedBox(
+      // ... resto del código del loading
+    )
+    : const Text('Iniciar Sesión'),
+),
               ],
             ),
           ),

@@ -1,9 +1,11 @@
+// lib/components/meeting_reminder_card.dart
 import 'package:flutter/material.dart';
+import 'package:flutter_quill/flutter_quill.dart';
 
 class MeetingReminderCard extends StatelessWidget {
   final String date;
   final String place;
-  final List<String> agenda;
+  final Map<String, dynamic> agenda;
 
   const MeetingReminderCard({
     Key? key,
@@ -12,7 +14,6 @@ class MeetingReminderCard extends StatelessWidget {
     required this.agenda,
   }) : super(key: key);
 
-  // Factory constructors existentes
   const factory MeetingReminderCard.loading() = _LoadingMeetingCard;
   const factory MeetingReminderCard.empty() = _EmptyMeetingCard;
   factory MeetingReminderCard.error(String message) = _ErrorMeetingCard;
@@ -34,13 +35,11 @@ class MeetingReminderCard extends StatelessWidget {
             _buildHeader(theme),
             const SizedBox(height: 24),
             _buildInfoSection(theme),
-            if (agenda.isNotEmpty) ...[
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 16),
-                child: Divider(thickness: 1),
-              ),
-              _buildAgendaSection(theme),
-            ],
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 16),
+              child: Divider(thickness: 1),
+            ),
+            _buildAgendaSection(theme),
           ],
         ),
       ),
@@ -123,67 +122,80 @@ class MeetingReminderCard extends StatelessWidget {
             color: Colors.grey[800],
           ),
         ),
-        const SizedBox(height: 8),
-        ...agenda.map((item) => Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(Icons.check_circle_outline,
-                      size: 16, color: Colors.blue[400]),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      item,
-                      style: theme.textTheme.bodyMedium,
-                    ),
-                  ),
-                ],
+        const SizedBox(height: 12),
+        Container(
+          height: 200,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey.shade200),
+          ),
+          padding: const EdgeInsets.all(16),
+          child: QuillEditor(
+            configurations: QuillEditorConfigurations(
+              controller: QuillController(
+                document: Document.fromJson(agenda['ops']),
+                selection: const TextSelection.collapsed(offset: 0),
+                readOnly: true,
               ),
-            )),
+              padding: EdgeInsets.zero,
+              autoFocus: false,
+              scrollable: true,
+              expands: false,
+            ),
+            focusNode: FocusNode(),
+            scrollController: ScrollController(),
+          ),
+        ),
       ],
     );
   }
 }
 
-// Estados especiales manteniendo la estructura existente
 class _LoadingMeetingCard extends MeetingReminderCard {
-  const _LoadingMeetingCard() : super(date: '', place: '', agenda: const []);
+  const _LoadingMeetingCard() 
+    : super(
+        date: 'Cargando...', 
+        place: 'Cargando...', 
+        agenda: const {'ops': [
+          {
+            'insert': 'Cargando agenda...\n',
+            'attributes': {
+              'italic': true,
+              'color': '#666666'
+            }
+          }
+        ]}
+      );
 
   @override
   Widget build(BuildContext context) {
-    final isWeb = MediaQuery.of(context).size.width > 600;
-
     return Card(
       elevation: 8,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
-        width: double.infinity,
-        padding: EdgeInsets.all(isWeb ? 24.0 : 16.0),
-        constraints: const BoxConstraints(
-          minHeight: 180, // Altura mínima aproximada al card con datos
-          maxHeight: 250, // Altura máxima razonable
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(
-              height: 32,
-              width: 32,
-              child: CircularProgressIndicator(
-                strokeWidth: 3,
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+        padding: const EdgeInsets.all(24),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(
+                height: 32,
+                width: 32,
+                child: CircularProgressIndicator(
+                  strokeWidth: 3,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Cargando reunión...',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Colors.grey[600],
-                  ),
-            ),
-          ],
+              const SizedBox(height: 16),
+              Text(
+                'Cargando próxima reunión...',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -191,29 +203,49 @@ class _LoadingMeetingCard extends MeetingReminderCard {
 }
 
 class _EmptyMeetingCard extends MeetingReminderCard {
-  const _EmptyMeetingCard() : super(date: '', place: '', agenda: const []);
+  const _EmptyMeetingCard() 
+    : super(
+        date: 'Sin fecha programada', 
+        place: 'Sin lugar asignado', 
+        agenda: const {'ops': [
+          {
+            'insert': 'No hay reuniones programadas actualmente.\nTe notificaremos cuando haya una nueva reunión.\n',
+            'attributes': {
+              'italic': true,
+              'color': '#666666'
+            }
+          }
+        ]}
+      );
 
   @override
   Widget build(BuildContext context) {
     return Card(
       elevation: 8,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.event_busy, size: 48, color: Colors.grey[400]),
-              const SizedBox(height: 16),
-              Text(
-                'No hay reuniones programadas',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: Colors.grey[600],
-                    ),
+      child: Container(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.event_busy, size: 48, color: Colors.grey[400]),
+            const SizedBox(height: 16),
+            Text(
+              'No hay reuniones programadas',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                color: Colors.grey[600],
+                fontWeight: FontWeight.bold,
               ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Te notificaremos cuando haya una nueva reunión',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Colors.grey[500],
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -224,38 +256,45 @@ class _ErrorMeetingCard extends MeetingReminderCard {
   final String message;
 
   _ErrorMeetingCard(this.message)
-      : super(date: '', place: '', agenda: const []);
+      : super(
+          date: 'Error', 
+          place: 'Error', 
+          agenda: {'ops': [
+            {
+              'insert': 'Error al cargar la reunión.\n',
+              'attributes': {'color': '#FF0000'}
+            }
+          ]}
+        );
 
   @override
   Widget build(BuildContext context) {
     return Card(
       elevation: 8,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.error_outline, size: 48, color: Colors.red[400]),
-              const SizedBox(height: 16),
-              Text(
-                'Error',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: Colors.red[700],
-                      fontWeight: FontWeight.bold,
-                    ),
+      child: Container(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.error_outline, size: 48, color: Colors.red[400]),
+            const SizedBox(height: 16),
+            Text(
+              'Error',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                color: Colors.red[700],
+                fontWeight: FontWeight.bold,
               ),
-              const SizedBox(height: 8),
-              Text(
-                message,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Colors.red[700],
-                    ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Colors.red[700],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

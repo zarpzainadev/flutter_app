@@ -36,8 +36,7 @@ Map<String, dynamic> _$UserToJson(User instance) => <String, dynamic>{
 
 GradoOut _$GradoOutFromJson(Map<String, dynamic> json) => GradoOut(
       id: (json['id'] as num?)?.toInt(),
-      grado: json['grado'] as String?,
-      abrev_grado: json['abrev_grado'] as String?,
+      id_grado: (json['id_grado'] as num?)?.toInt(),
       fecha_grado: json['fecha_grado'] == null
           ? null
           : DateTime.parse(json['fecha_grado'] as String),
@@ -45,15 +44,16 @@ GradoOut _$GradoOutFromJson(Map<String, dynamic> json) => GradoOut(
       fecha: json['fecha'] == null
           ? null
           : DateTime.parse(json['fecha'] as String),
+      nombre_grado: json['nombre_grado'] as String?,
     );
 
 Map<String, dynamic> _$GradoOutToJson(GradoOut instance) => <String, dynamic>{
       'id': instance.id,
-      'grado': instance.grado,
-      'abrev_grado': instance.abrev_grado,
+      'id_grado': instance.id_grado,
       'fecha_grado': instance.fecha_grado?.toIso8601String(),
       'estado': instance.estado,
       'fecha': instance.fecha?.toIso8601String(),
+      'nombre_grado': instance.nombre_grado,
     };
 
 InformacionProfesionalOut _$InformacionProfesionalOutFromJson(
